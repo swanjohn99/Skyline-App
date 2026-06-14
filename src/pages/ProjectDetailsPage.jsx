@@ -2,13 +2,18 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { ArrowLeft } from 'lucide-react';
+import { formatCurrency } from '../utils/formatCurrency';
 
 function getStatusClass(status) {
   const normalized = status?.toLowerCase().trim() ?? '';
-  if (normalized.includes('site visit')) return 'status-badge status-badge--site-visit';
+  if (normalized === 'site visit requested') return 'status-badge status-badge--site-visit-requested';
+  if (normalized === 'site visit done') return 'status-badge status-badge--site-visit-done';
   if (normalized === 'quotation sent') return 'status-badge status-badge--quotation';
   if (normalized === 'work started') return 'status-badge status-badge--work-started';
-  if (normalized === 'work ended') return 'status-badge status-badge--work-ended';
+  if (normalized === 'work completed' || normalized === 'work ended') {
+    return 'status-badge status-badge--work-completed';
+  }
+  if (normalized === 'completed') return 'status-badge status-badge--completed';
   if (normalized === 'rejected') return 'status-badge status-badge--rejected';
   return 'status-badge status-badge--default';
 }
@@ -87,21 +92,21 @@ export default function ProjectDetailsPage() {
           <p className="detail-card-title">Financials</p>
           <div className="detail-row">
             <span className="detail-row-label">Total Quoted</span>
-            <span className="detail-row-value">${Number(project.total_quoted_amount || 0).toLocaleString()}</span>
+            <span className="detail-row-value">{formatCurrency(project.total_quoted_amount)}</span>
           </div>
           <div className="detail-row">
             <span className="detail-row-label">Received</span>
-            <span className="detail-row-value detail-row-value--success">${Number(project.amount_received || 0).toLocaleString()}</span>
+            <span className="detail-row-value detail-row-value--success">{formatCurrency(project.amount_received)}</span>
           </div>
           <div className="detail-row">
             <span className="detail-row-label">Pending</span>
             <span className={`detail-row-value${pending > 0 ? ' detail-row-value--pending' : ' detail-row-value--success'}`}>
-              ${pending.toLocaleString()}
+              {formatCurrency(pending)}
             </span>
           </div>
           <div className="detail-row">
             <span className="detail-row-label">Total Expenses</span>
-            <span className="detail-row-value">${totalExpenses.toLocaleString()}</span>
+            <span className="detail-row-value">{formatCurrency(totalExpenses)}</span>
           </div>
         </div>
       </div>
@@ -126,7 +131,7 @@ export default function ProjectDetailsPage() {
                 <tr key={exp.id}>
                   <td>{exp.description || '—'}</td>
                   <td>{exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</td>
-                  <td className="data-table-amount">${Number(exp.amount).toLocaleString()}</td>
+                  <td className="data-table-amount">{formatCurrency(exp.amount)}</td>
                 </tr>
               ))
             )}

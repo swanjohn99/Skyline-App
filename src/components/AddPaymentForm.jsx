@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
-export default function AddPaymentForm({ onPaymentAdded, defaultProjectId }) {
+export default function AddPaymentForm({ onPaymentAdded, defaultProjectId, onCancel }) {
   const [projects, setProjects] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [payment, setPayment] = useState({
@@ -11,14 +11,16 @@ export default function AddPaymentForm({ onPaymentAdded, defaultProjectId }) {
   });
 
   useEffect(() => {
-    supabase.from('projects').select('id, project_title').then(({ data }) => setProjects(data || []));
+    supabase
+      .from('projects')
+      .select('id, project_title, client_name, status')
+      .then(({ data }) => {
+        setProjects((data || []).filter((project) => {
+          const status = project.status?.toLowerCase().trim();
+          return status !== 'completed';
+        }));
+      });
   }, []);
-
-  useEffect(() => {
-    if (defaultProjectId) {
-      setPayment(prev => ({ ...prev, project_id: defaultProjectId }));
-    }
-  }, [defaultProjectId]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -56,13 +58,17 @@ export default function AddPaymentForm({ onPaymentAdded, defaultProjectId }) {
               onChange={(e) => setPayment({ ...payment, project_id: e.target.value })}
             >
               <option value="">Select a project…</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.project_title}</option>)}
+              {projects.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.project_title} — {p.client_name || 'No client'}
+                </option>
+              ))}
             </select>
           </div>
         )}
 
         <div className="form-field">
-          <label>Amount ($)</label>
+          <label>Amount (INR)</label>
           <input
             type="number"
             required
@@ -87,6 +93,9 @@ export default function AddPaymentForm({ onPaymentAdded, defaultProjectId }) {
         <button type="submit" disabled={submitting} className="btn btn-primary">
           {submitting ? 'Saving…' : 'Add Payment'}
         </button>
+        {!isCompact && (
+          <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
+        )}
       </div>
     </form>
   );

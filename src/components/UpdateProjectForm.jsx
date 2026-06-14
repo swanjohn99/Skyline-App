@@ -5,7 +5,7 @@ import './UpdateProjectForm.css';
 
 const STATUS_OPTIONS = [
   'site visit requested', 'site visit done', 'quotation sent', 
-  'work started', 'work ended', 'rejected', 'Completed'
+  'work started', 'work completed', 'Completed', 'rejected'
 ];
 
 function UpdateProjectForm({ project, onUpdate, onClose }) {
@@ -18,13 +18,13 @@ function UpdateProjectForm({ project, onUpdate, onClose }) {
   });
   
   const [submitting, setSubmitting] = useState(false);
+  const isCompleted = project.status?.toLowerCase().trim() === 'completed';
 
   async function handleUpdate(e) {
     e.preventDefault();
     setSubmitting(true);
   
-    // Logic: Only keep end_date if status is work ended or Completed
-    const canHaveEndDate = ['work ended', 'Completed'].includes(form.status);
+    const canHaveEndDate = ['work completed', 'work ended', 'Completed'].includes(form.status);
     const finalEndDate = canHaveEndDate ? form.end_date : null;
   
     const { error } = await supabase
@@ -73,7 +73,7 @@ function UpdateProjectForm({ project, onUpdate, onClose }) {
             </select>
           </div>
 
-          {['work started', 'work ended', 'Completed'].includes(form.status) && (
+          {['work started', 'work completed', 'work ended', 'Completed'].includes(form.status) && (
             <div className="form-group half-width">
               <label>Completion (%)</label>
               <input 
@@ -95,7 +95,7 @@ function UpdateProjectForm({ project, onUpdate, onClose }) {
               />
             </div>
             
-            {['work ended', 'Completed'].includes(form.status) && (
+            {['work completed', 'work ended', 'Completed'].includes(form.status) && (
               <div className="form-group half-width">
                 <label>End Date</label>
                 <input 
@@ -108,7 +108,7 @@ function UpdateProjectForm({ project, onUpdate, onClose }) {
           </div>
 
           <div className="form-group half-width">
-            <label>Total Quoted Amount ($)</label>
+            <label>Total Quoted Amount (INR)</label>
             <input 
               type="number" 
               step="0.01" 
@@ -117,13 +117,15 @@ function UpdateProjectForm({ project, onUpdate, onClose }) {
             />
           </div>
 
-          <div className="form-section-divider">
-            <p className="form-section-label">Record Payment</p>
-            <AddPaymentForm
-              defaultProjectId={project.id}
-              onPaymentAdded={onUpdate}
-            />
-          </div>
+          {!isCompleted && (
+            <div className="form-section-divider">
+              <p className="form-section-label">Record Payment</p>
+              <AddPaymentForm
+                defaultProjectId={project.id}
+                onPaymentAdded={onUpdate}
+              />
+            </div>
+          )}
           
           <div className="modal-actions">
             <button type="submit" className="save-btn" disabled={submitting}>

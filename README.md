@@ -59,3 +59,17 @@ VITE_SUPABASE_ANON_KEY=YOUR_ANON_KEY
 ```
 
 See [docs/06-local-setup.md](./docs/06-local-setup.md) for full setup instructions.
+
+## Google OAuth setup
+
+The login page supports Google OAuth through Supabase Auth.
+
+1. In Google Cloud, create an OAuth client with application type **Web application**.
+2. Add your app origins, including `http://localhost:5173` for local development.
+3. Copy the Supabase callback URL from **Authentication → Providers → Google** and add it to Google's authorized redirect URIs.
+4. In Supabase, enable the Google provider and enter the Google Client ID and Client Secret.
+5. In **Authentication → URL Configuration**, add these redirect URLs:
+   - `http://localhost:5173/**`
+   - Your production app URL, for example `https://skylineconstructions.in/app/**`
+
+Google OAuth creates a Supabase user on first sign-in. Configure the Google OAuth audience or application authorization rules if access should be limited to approved users.

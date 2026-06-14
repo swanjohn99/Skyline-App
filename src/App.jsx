@@ -1,10 +1,13 @@
+import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
-import { LayoutDashboard, FolderKanban, Receipt, Wallet, Building2 } from 'lucide-react';
+import { LayoutDashboard, FolderKanban, Receipt, Wallet, Building2, LogOut } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import ProjectPage from './pages/ProjectPage';
 import ExpensePage from './pages/ExpensePage';
 import ProjectDetailsPage from './pages/ProjectDetailsPage';
 import PaymentsPage from './pages/Payments';
+import LoginPage from './pages/LoginPage';
+import { supabase } from './supabaseClient';
 import './App.css';
 
 const NAV_ITEMS = [
@@ -15,6 +18,36 @@ const NAV_ITEMS = [
 ];
 
 function App() {
+  const [session, setSession] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setAuthLoading(false);
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setAuthLoading(false);
+    });
+
+    return () => authListener.subscription.unsubscribe();
+  }, []);
+
+  if (authLoading) {
+    return (
+      <div className="auth-loading">
+        <div className="loading-spinner" />
+        Loading Skyline…
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <LoginPage />;
+  }
+
   return (
     <BrowserRouter>
       <div className="app-shell">
@@ -44,7 +77,11 @@ function App() {
           </nav>
 
           <div className="sidebar-footer">
-            <p>Project management for construction teams.</p>
+            <p className="sidebar-user" title={session.user.email}>{session.user.email}</p>
+            <button type="button" className="sign-out-button" onClick={() => supabase.auth.signOut()}>
+              <LogOut size={16} />
+              Sign out
+            </button>
           </div>
         </aside>
 

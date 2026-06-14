@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
+import { formatCurrency } from '../utils/formatCurrency';
 import './ProjectTable.css';
 
 export default function ExpenseTable({ refreshKey }) {
@@ -11,7 +12,7 @@ export default function ExpenseTable({ refreshKey }) {
       setLoading(true);
       const { data } = await supabase
         .from('expenses')
-        .select('amount, description, expense_date, projects(status)')
+        .select('amount, description, expense_date, projects(project_title, client_name)')
         .order('expense_date', { ascending: false });
       setExpenses(data || []);
       setLoading(false);
@@ -36,7 +37,8 @@ export default function ExpenseTable({ refreshKey }) {
           <thead>
             <tr>
               <th>Date</th>
-              <th>Project Status</th>
+              <th>Project Title</th>
+              <th>Client Name</th>
               <th>Description</th>
               <th>Amount</th>
             </tr>
@@ -44,17 +46,16 @@ export default function ExpenseTable({ refreshKey }) {
           <tbody>
             {expenses.length === 0 ? (
               <tr>
-                <td colSpan={4} className="data-table-empty">No expenses recorded yet.</td>
+                <td colSpan={5} className="data-table-empty">No expenses recorded yet.</td>
               </tr>
             ) : (
               expenses.map((exp, i) => (
                 <tr key={i}>
                   <td>{exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</td>
-                  <td>
-                    <span className="status-badge status-badge--default">{exp.projects?.status || 'N/A'}</span>
-                  </td>
+                  <td>{exp.projects?.project_title || '—'}</td>
+                  <td>{exp.projects?.client_name || '—'}</td>
                   <td>{exp.description || '—'}</td>
-                  <td className="data-table-amount">${Number(exp.amount).toFixed(2)}</td>
+                  <td className="data-table-amount">{formatCurrency(exp.amount)}</td>
                 </tr>
               ))
             )}

@@ -7,7 +7,8 @@ const STATUS_OPTIONS = [
   'site visit done',
   'quotation sent',
   'work started',
-  'work ended',
+  'work completed',
+  'Completed',
   'rejected',
 ];
 
@@ -24,7 +25,7 @@ const INITIAL_FORM = {
   completion_percent: 0,
 };
 
-function AddProjectForm({ onProjectAdded }) {
+function AddProjectForm({ onProjectAdded, onCancel }) {
   const [form, setForm] = useState(INITIAL_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -46,7 +47,9 @@ function AddProjectForm({ onProjectAdded }) {
     setError(null);
     setSuccess(false);
 
-    const completionPercent = form.status === 'work ended' ? 100 : form.completion_percent;
+    const completionPercent = ['work completed', 'Completed'].includes(form.status)
+      ? 100
+      : form.completion_percent;
 
     const { error: insertError } = await supabase.from('projects').insert({
       project_title: form.project_title,
@@ -93,11 +96,11 @@ function AddProjectForm({ onProjectAdded }) {
             <input name="location" value={form.location} onChange={handleChange} />
           </div>
           <div className="add-project-form-field">
-            <label>Total Amount ($)</label>
+            <label>Total Amount (INR)</label>
             <input name="total_quoted_amount" type="number" value={form.total_quoted_amount} onChange={handleChange} />
           </div>
           <div className="add-project-form-field">
-            <label>Amount Received ($)</label>
+            <label>Amount Received (INR)</label>
             <input name="amount_received" type="number" value={form.amount_received} onChange={handleChange} />
           </div>
           <div className="add-project-form-field">
@@ -124,6 +127,7 @@ function AddProjectForm({ onProjectAdded }) {
           <button type="submit" disabled={submitting} className="btn btn-primary">
             {submitting ? 'Submitting…' : 'Create Project'}
           </button>
+          <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
           {success && <span className="form-message form-message--success">Project created successfully.</span>}
         </div>
         {error && <p className="form-message form-message--error">{error}</p>}

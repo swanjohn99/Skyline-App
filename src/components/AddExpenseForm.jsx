@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
-function AddExpenseForm({ onExpenseAdded }) {
+function AddExpenseForm({ onExpenseAdded, onCancel }) {
   const [projects, setProjects] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -14,8 +14,16 @@ function AddExpenseForm({ onExpenseAdded }) {
 
   useEffect(() => {
     async function fetchProjects() {
-      const { data } = await supabase.from('projects').select('id, project_title');
-      if (data) setProjects(data);
+      const { data } = await supabase
+        .from('projects')
+        .select('id, project_title, status');
+
+      if (data) {
+        setProjects(data.filter((project) => {
+          const status = project.status?.toLowerCase().trim();
+          return status !== 'completed';
+        }));
+      }
     }
     fetchProjects();
   }, []);
@@ -64,7 +72,7 @@ function AddExpenseForm({ onExpenseAdded }) {
         </div>
 
         <div className="form-field">
-          <label>Amount ($)</label>
+          <label>Amount (INR)</label>
           <input
             type="number"
             required
@@ -98,6 +106,7 @@ function AddExpenseForm({ onExpenseAdded }) {
         <button type="submit" disabled={submitting} className="btn btn-primary">
           {submitting ? 'Adding…' : 'Add Expense'}
         </button>
+        <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
       </div>
     </form>
   );
