@@ -1,0 +1,55 @@
+.add-project-form {
+  width: 100%;
+}
+
+.add-project-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
+.add-project-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.add-project-form-field label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-strong);
+  letter-spacing: 0.02em;
+}
+
+.add-project-form-field input,
+.add-project-form-field select,
+.add-project-form-field textarea {
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.925rem;
+  color: var(--color-heading);
+  background: var(--color-surface);
+  transition: border-color var(--transition), box-shadow var(--transition);
+  width: 100%;
+}
+
+.add-project-form-field textarea {
+  min-height: 96px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.add-project-form-field input:focus,
+.add-project-form-field select:focus,
+.add-project-form-field textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+
+@media (max-width: 640px) {
+  .add-project-form-grid {
+    grid-template-columns: 1fr;
+  }
+}

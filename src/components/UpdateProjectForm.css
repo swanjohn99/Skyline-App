@@ -1,0 +1,174 @@
+.skyline-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(12, 18, 34, 0.65);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  backdrop-filter: blur(6px);
+  padding: 20px;
+  animation: fadeIn 0.2s ease;
+}
+
+.skyline-modal-content {
+  background: var(--color-surface);
+  padding: 32px;
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 540px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-border);
+  position: relative;
+}
+
+.modal-header {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--color-border);
+  position: relative;
+  padding-right: 32px;
+}
+
+.modal-header h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-heading);
+  margin-bottom: 4px;
+}
+
+.project-title-display {
+  display: block;
+  font-size: 0.925rem;
+  color: var(--color-text);
+  font-weight: 400;
+}
+
+.close-x {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-border-subtle);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--color-text);
+  transition: background var(--transition), color var(--transition);
+}
+
+.close-x:hover {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.skyline-update-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.form-row {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 7px;
+}
+
+.form-group.full-width {
+  width: 100%;
+}
+
+.form-group label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-strong);
+  letter-spacing: 0.02em;
+}
+
+.skyline-update-form input,
+.skyline-update-form select {
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.925rem;
+  color: var(--color-heading);
+  transition: border-color var(--transition), box-shadow var(--transition);
+  background: var(--color-surface);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.skyline-update-form input:focus,
+.skyline-update-form select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border);
+}
+
+.skyline-update-form .save-btn {
+  padding: 10px 22px;
+  font-size: 0.925rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--color-primary) 0%, #1d4ed8 100%);
+  color: white;
+  border: none;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+  transition: background var(--transition), box-shadow var(--transition);
+}
+
+.skyline-update-form .save-btn:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+}
+
+.skyline-update-form .save-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.skyline-update-form .cancel-btn {
+  padding: 10px 22px;
+  font-size: 0.925rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: var(--color-border-subtle);
+  color: var(--color-text-strong);
+  border: 1px solid var(--color-border);
+  transition: background var(--transition);
+}
+
+.skyline-update-form .cancel-btn:hover {
+  background: var(--color-border);
+}
+
+@media (max-width: 520px) {
+  .form-row {
+    flex-direction: column;
+  }
+}
