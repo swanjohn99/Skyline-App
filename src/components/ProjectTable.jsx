@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { Columns3 } from 'lucide-react';
-import { supabase } from '../supabaseClient';
-import { formatCurrency } from '../utils/formatCurrency';
+import { listProjects } from '../api/projects';
+import { formatCurrency, formatDate } from '../utils/format';
+import { statusBadgeClass } from '../constants';
 import './ProjectTable.css';
 
 const COLUMN_OPTIONS = [
@@ -18,29 +19,6 @@ const COLUMN_OPTIONS = [
 const DEFAULT_VISIBLE_COLUMNS = Object.fromEntries(
   COLUMN_OPTIONS.map(({ key }) => [key, true])
 );
-
-function getStatusClass(status) {
-  const normalized = status?.toLowerCase().trim() ?? '';
-  if (normalized === 'site visit requested') return 'status-badge status-badge--site-visit-requested';
-  if (normalized === 'site visit done') return 'status-badge status-badge--site-visit-done';
-  if (normalized === 'quotation sent') return 'status-badge status-badge--quotation';
-  if (normalized === 'work started') return 'status-badge status-badge--work-started';
-  if (normalized === 'work completed' || normalized === 'work ended') {
-    return 'status-badge status-badge--work-completed';
-  }
-  if (normalized === 'completed') return 'status-badge status-badge--completed';
-  if (normalized === 'rejected') return 'status-badge status-badge--rejected';
-  return 'status-badge status-badge--default';
-}
-
-function formatDate(dateString) {
-  if (!dateString) return '—';
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
 
 function ProjectTable({ refreshKey, onEdit }) {
   const [projects, setProjects] = useState([]);
@@ -63,18 +41,12 @@ function ProjectTable({ refreshKey, onEdit }) {
   }
 
   useEffect(() => {
-    async function fetchProjects() {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .order('start_date', { ascending: false });
-
-      if (error) console.error('Error fetching projects:', error);
-      else setProjects(data ?? []);
-      setLoading(false);
-    }
-    fetchProjects();
+    let active = true;
+    listProjects()
+      .then((data) => { if (active) setProjects(data); })
+      .catch((err) => console.error('Error fetching projects:', err))
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [refreshKey]);
 
   if (loading) {
@@ -136,7 +108,7 @@ function ProjectTable({ refreshKey, onEdit }) {
             ) : (
               projects.map((p) => {
                 const pending = (p.total_quoted_amount || 0) - (p.amount_received || 0);
-                const isCompleted = p.status?.toLowerCase().trim() === 'completed';
+                const isCompleted = (p.status ?? '').toLowerCase().trim() === 'completed';
                 return (
                   <tr key={p.id} className={isCompleted ? 'project-row--completed' : undefined}>
                     <td className="project-title-cell">
@@ -158,7 +130,7 @@ function ProjectTable({ refreshKey, onEdit }) {
                     )}
                     {visibleColumns.status && (
                       <td>
-                        <span className={getStatusClass(p.status)}>{p.status}</span>
+                        <span className={statusBadgeClass(p.status)}>{p.status}</span>
                       </td>
                     )}
                     <td>

@@ -1,41 +1,29 @@
-import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
-import { LayoutDashboard, FolderKanban, Receipt, Wallet, Building2, LogOut } from 'lucide-react';
+import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
+import { LayoutDashboard, FolderKanban, Receipt, Wallet, Users, Contact, Building2, LogOut } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import ProjectPage from './pages/ProjectPage';
 import ExpensePage from './pages/ExpensePage';
 import ProjectDetailsPage from './pages/ProjectDetailsPage';
 import PaymentsPage from './pages/Payments';
+import ClientsPage from './pages/ClientsPage';
+import TeamPage from './pages/TeamPage';
 import LoginPage from './pages/LoginPage';
-import { supabase } from './supabaseClient';
+import OnboardingPage from './pages/OnboardingPage';
+import { useAuth } from './context/auth';
 import './App.css';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/projects', label: 'Projects', icon: FolderKanban },
+  { to: '/clients', label: 'Clients', icon: Contact },
   { to: '/expenses', label: 'Expenses', icon: Receipt },
   { to: '/payments', label: 'Payments', icon: Wallet },
 ];
 
 function App() {
-  const [session, setSession] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const { session, loading, needsOnboarding, canManageTeam, profile, user, companyName, signOut } = useAuth();
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setAuthLoading(false);
-    });
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      setAuthLoading(false);
-    });
-
-    return () => authListener.subscription.unsubscribe();
-  }, []);
-
-  if (authLoading) {
+  if (loading) {
     return (
       <div className="auth-loading">
         <div className="loading-spinner" />
@@ -48,6 +36,14 @@ function App() {
     return <LoginPage />;
   }
 
+  if (needsOnboarding) {
+    return <OnboardingPage />;
+  }
+
+  const navItems = canManageTeam
+    ? [...NAV_ITEMS, { to: '/team', label: 'Team', icon: Users }]
+    : NAV_ITEMS;
+
   return (
     <BrowserRouter>
       <div className="app-shell">
@@ -57,13 +53,13 @@ function App() {
               <Building2 size={22} strokeWidth={2.25} />
             </div>
             <div className="sidebar-brand-text">
-              <span className="sidebar-brand-name">Skyline</span>
+              <span className="sidebar-brand-name">{companyName || 'Skyline'}</span>
               <span className="sidebar-brand-tagline">Constructions</span>
             </div>
           </div>
 
           <nav className="sidebar-nav">
-            {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
+            {navItems.map(({ to, label, icon: Icon, end }) => (
               <NavLink
                 key={to}
                 to={to}
@@ -77,8 +73,9 @@ function App() {
           </nav>
 
           <div className="sidebar-footer">
-            <p className="sidebar-user" title={session.user.email}>{session.user.email}</p>
-            <button type="button" className="sign-out-button" onClick={() => supabase.auth.signOut()}>
+            <p className="sidebar-user" title={user?.email}>{user?.email}</p>
+            <p className="sidebar-role">{profile?.role?.replace('_', ' ')}</p>
+            <button type="button" className="sign-out-button" onClick={signOut}>
               <LogOut size={16} />
               Sign out
             </button>
@@ -90,8 +87,11 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/projects" element={<ProjectPage />} />
             <Route path="/projects/:id" element={<ProjectDetailsPage />} />
+            <Route path="/clients" element={<ClientsPage />} />
             <Route path="/expenses" element={<ExpensePage />} />
             <Route path="/payments" element={<PaymentsPage />} />
+            <Route path="/team" element={canManageTeam ? <TeamPage /> : <Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
       </div>

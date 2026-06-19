@@ -1,40 +1,44 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
+import { listOpenProjects } from '../api/projects';
+import { createPayment } from '../api/payments';
+import { todayInputValue } from '../utils/format';
 
 export default function AddPaymentForm({ onPaymentAdded, defaultProjectId, onCancel }) {
   const [projects, setProjects] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
   const [payment, setPayment] = useState({
     project_id: defaultProjectId || '',
     amount: '',
-    payment_date: new Date().toISOString().split('T')[0]
+    payment_date: todayInputValue(),
   });
 
   useEffect(() => {
-    supabase
-      .from('projects')
-      .select('id, project_title, client_name, status')
-      .then(({ data }) => {
-        setProjects((data || []).filter((project) => {
-          const status = project.status?.toLowerCase().trim();
-          return status !== 'completed';
-        }));
-      });
-  }, []);
+    if (defaultProjectId) return;
+    listOpenProjects().then(setProjects).catch(() => setProjects([]));
+  }, [defaultProjectId]);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setSubmitting(true);
-    const { error } = await supabase.from('payments').insert([payment]);
-    if (!error) {
+    setError(null);
+    try {
+      await createPayment({
+        project_id: payment.project_id,
+        amount: Number(payment.amount),
+        payment_date: payment.payment_date,
+      });
       onPaymentAdded?.();
       if (!defaultProjectId) {
-        setPayment({ project_id: '', amount: '', payment_date: new Date().toISOString().split('T')[0] });
+        setPayment({ project_id: '', amount: '', payment_date: todayInputValue() });
       } else {
-        setPayment(prev => ({ ...prev, amount: '', payment_date: new Date().toISOString().split('T')[0] }));
+        setPayment((prev) => ({ ...prev, amount: '', payment_date: todayInputValue() }));
       }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   }
 
   const isCompact = Boolean(defaultProjectId);
@@ -96,6 +100,7 @@ export default function AddPaymentForm({ onPaymentAdded, defaultProjectId, onCan
         {!isCompact && (
           <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
         )}
+        {error && <span className="form-message form-message--error">{error}</span>}
       </div>
     </form>
   );

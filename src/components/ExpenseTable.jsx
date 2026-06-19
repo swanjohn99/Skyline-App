@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../supabaseClient';
-import { formatCurrency } from '../utils/formatCurrency';
+import { listExpenses } from '../api/expenses';
+import { formatCurrency, formatDate } from '../utils/format';
 import './ProjectTable.css';
 
 export default function ExpenseTable({ refreshKey }) {
@@ -8,16 +8,12 @@ export default function ExpenseTable({ refreshKey }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchExpenses() {
-      setLoading(true);
-      const { data } = await supabase
-        .from('expenses')
-        .select('amount, description, expense_date, projects(project_title, client_name)')
-        .order('expense_date', { ascending: false });
-      setExpenses(data || []);
-      setLoading(false);
-    }
-    fetchExpenses();
+    let active = true;
+    listExpenses()
+      .then((data) => { if (active) setExpenses(data); })
+      .catch(() => { if (active) setExpenses([]); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [refreshKey]);
 
   if (loading) {
@@ -49,9 +45,9 @@ export default function ExpenseTable({ refreshKey }) {
                 <td colSpan={5} className="data-table-empty">No expenses recorded yet.</td>
               </tr>
             ) : (
-              expenses.map((exp, i) => (
-                <tr key={i}>
-                  <td>{exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</td>
+              expenses.map((exp) => (
+                <tr key={exp.id}>
+                  <td>{formatDate(exp.expense_date)}</td>
                   <td>{exp.projects?.project_title || '—'}</td>
                   <td>{exp.projects?.client_name || '—'}</td>
                   <td>{exp.description || '—'}</td>

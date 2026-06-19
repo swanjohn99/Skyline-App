@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../supabaseClient';
-import { formatCurrency } from '../utils/formatCurrency';
+import { listPayments } from '../api/payments';
+import { formatCurrency, formatDate } from '../utils/format';
 import './ProjectTable.css';
 
 export default function PaymentsTable({ refreshKey }) {
@@ -8,16 +8,12 @@ export default function PaymentsTable({ refreshKey }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchPayments() {
-      setLoading(true);
-      const { data } = await supabase
-        .from('payments')
-        .select('*, projects(project_title, client_name)')
-        .order('payment_date', { ascending: false });
-      if (data) setPayments(data);
-      setLoading(false);
-    }
-    fetchPayments();
+    let active = true;
+    listPayments()
+      .then((data) => { if (active) setPayments(data); })
+      .catch(() => { if (active) setPayments([]); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [refreshKey]);
 
   if (loading) {
@@ -50,7 +46,7 @@ export default function PaymentsTable({ refreshKey }) {
             ) : (
               payments.map(p => (
                 <tr key={p.id}>
-                  <td>{p.payment_date ? new Date(p.payment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</td>
+                  <td>{formatDate(p.payment_date)}</td>
                   <td>{p.projects?.project_title || '—'}</td>
                   <td>{p.projects?.client_name || '—'}</td>
                   <td className="data-table-amount">{formatCurrency(p.amount)}</td>

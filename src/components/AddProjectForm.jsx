@@ -1,19 +1,12 @@
-import { useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { useState, useEffect } from 'react';
+import { createProject } from '../api/projects';
+import { listClients } from '../api/clients';
+import { PROJECT_STATUSES, COMPLETED_STATUSES } from '../constants';
 import './AddProjectForm.css';
-
-const STATUS_OPTIONS = [
-  'site visit requested',
-  'site visit done',
-  'quotation sent',
-  'work started',
-  'work completed',
-  'Completed',
-  'rejected',
-];
 
 const INITIAL_FORM = {
   project_title: '',
+  client_id: '',
   client_name: '',
   location: '',
   work_description: '',
@@ -27,9 +20,14 @@ const INITIAL_FORM = {
 
 function AddProjectForm({ onProjectAdded, onCancel }) {
   const [form, setForm] = useState(INITIAL_FORM);
+  const [clients, setClients] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    listClients().then(setClients).catch(() => setClients([]));
+  }, []);
 
   function handleChange(event) {
     const { name, value, type } = event.target;
@@ -41,40 +39,49 @@ function AddProjectForm({ onProjectAdded, onCancel }) {
     setError(null);
   }
 
+  function handleClientSelect(event) {
+    const clientId = event.target.value;
+    const client = clients.find((c) => c.id === clientId);
+    setForm((prev) => ({
+      ...prev,
+      client_id: clientId,
+      client_name: client ? client.name : prev.client_name,
+      location: client?.location || prev.location,
+    }));
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
     setSuccess(false);
 
-    const completionPercent = ['work completed', 'Completed'].includes(form.status)
+    const completionPercent = COMPLETED_STATUSES.includes(form.status)
       ? 100
       : form.completion_percent;
 
-    const { error: insertError } = await supabase.from('projects').insert({
-      project_title: form.project_title,
-      client_name: form.client_name,
-      location: form.location,
-      work_description: form.work_description,
-      total_quoted_amount: form.total_quoted_amount,
-      amount_received: form.amount_received,
-      status: form.status,
-      completion_percent: completionPercent,
-      start_date: form.start_date || null,
-      end_date: form.end_date || null,
-    });
-
-    setSubmitting(false);
-
-    if (insertError) {
-      console.error('Error adding project:', insertError);
+    try {
+      await createProject({
+        project_title: form.project_title,
+        client_id: form.client_id || null,
+        client_name: form.client_name,
+        location: form.location,
+        work_description: form.work_description,
+        total_quoted_amount: form.total_quoted_amount,
+        amount_received: form.amount_received,
+        status: form.status,
+        completion_percent: completionPercent,
+        start_date: form.start_date || null,
+        end_date: form.end_date || null,
+      });
+      setForm(INITIAL_FORM);
+      setSuccess(true);
+      onProjectAdded?.();
+    } catch (insertError) {
       setError(insertError.message);
-      return;
+    } finally {
+      setSubmitting(false);
     }
-
-    setForm(INITIAL_FORM);
-    setSuccess(true);
-    onProjectAdded?.();
   }
 
   return (
@@ -86,6 +93,15 @@ function AddProjectForm({ onProjectAdded, onCancel }) {
           <div className="add-project-form-field">
             <label>Project Title</label>
             <input name="project_title" value={form.project_title} onChange={handleChange} required />
+          </div>
+          <div className="add-project-form-field">
+            <label>Link Client (CRM)</label>
+            <select value={form.client_id} onChange={handleClientSelect}>
+              <option value="">— None / new —</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
           </div>
           <div className="add-project-form-field">
             <label>Client Name</label>
@@ -106,7 +122,7 @@ function AddProjectForm({ onProjectAdded, onCancel }) {
           <div className="add-project-form-field">
             <label>Status</label>
             <select name="status" value={form.status} onChange={handleChange} required>
-              {STATUS_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+              {PROJECT_STATUSES.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
             </select>
           </div>
           <div className="add-project-form-field">

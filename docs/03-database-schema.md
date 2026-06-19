@@ -1,6 +1,8 @@
 # Database Schema
 
-The database lives in **Supabase (PostgreSQL)**. There are no migration files in the application repository; this document and [`schema.sql`](./schema.sql) serve as the canonical schema seed for replication.
+The database lives in **Supabase (PostgreSQL)** and is **multi-tenant**. [`schema.sql`](./schema.sql) is the canonical, idempotent build script (it drops and recreates everything). This document describes the model.
+
+Every business row is scoped to a `company_id`. Row Level Security (RLS) isolates each company's data using the signed-in user's `auth.uid()`.
 
 ---
 
@@ -8,225 +10,157 @@ The database lives in **Supabase (PostgreSQL)**. There are no migration files in
 
 ```mermaid
 erDiagram
-  projects ||--o{ expenses : has
-  projects ||--o{ payments : has
+  companies ||--o{ profiles : has
+  companies ||--o{ clients : has
+  companies ||--o{ projects : has
+  clients   ||--o{ projects : "linked to"
+  projects  ||--o{ expenses : has
+  projects  ||--o{ payments : has
 
+  companies {
+    uuid id PK
+    text name
+    uuid owner_id FK
+    timestamptz created_at
+  }
+  profiles {
+    uuid id PK
+    uuid company_id FK
+    text role
+    boolean is_active
+    text full_name
+    text email
+  }
+  clients {
+    uuid id PK
+    uuid company_id FK
+    text name
+    text email
+    text phone
+    text address
+    text location
+    text source
+    text_array tags
+    text notes
+  }
   projects {
     uuid id PK
+    uuid company_id FK
+    uuid client_id FK
     text project_title
     text client_name
-    text location
-    text work_description
+    text status
     numeric total_quoted_amount
     numeric amount_received
-    text status
     int completion_percent
-    date start_date
-    date end_date
-    timestamptz created_at
   }
-
   expenses {
     uuid id PK
+    uuid company_id FK
     uuid project_id FK
     numeric amount
-    text description
     date expense_date
-    timestamptz created_at
   }
-
   payments {
     uuid id PK
+    uuid company_id FK
     uuid project_id FK
     numeric amount
     date payment_date
-    timestamptz created_at
   }
 ```
 
 ---
 
-## Table: `projects`
+## Tenancy tables
 
-| Column | Type | Nullable | Default | Notes |
-|--------|------|----------|---------|-------|
-| `id` | `uuid` | NO | `gen_random_uuid()` | Primary key |
-| `project_title` | `text` | NO | — | Display name |
-| `client_name` | `text` | YES | — | |
-| `location` | `text` | YES | — | Job site or address |
-| `work_description` | `text` | YES | — | Free-text scope |
-| `total_quoted_amount` | `numeric(12,2)` | YES | `0` | Quoted contract value |
-| `amount_received` | `numeric(12,2)` | YES | `0` | **Set manually on create only in app** |
-| `status` | `text` | NO | `'site visit requested'` | See status workflow |
-| `completion_percent` | `integer` | YES | `0` | 0–100 |
-| `start_date` | `date` | YES | — | |
-| `end_date` | `date` | YES | — | Required for completed jobs in UI |
-| `created_at` | `timestamptz` | YES | `now()` | Recommended |
+### `companies`
+One row per tenant. `owner_id` references the auth user who created it.
 
-### Status values (as used in app)
+### `profiles`
+One row per auth user (`id` = `auth.users.id`).
 
-| Status | Meaning |
-|--------|---------|
-| `site visit requested` | Default on create |
-| `site visit done` | Site assessed |
-| `quotation sent` | Quote delivered to client |
-| `work started` | Active construction |
-| `work ended` | Job complete (terminal) |
-| `rejected` | Lost / declined (terminal) |
-| `Completed` | **Update form only** — inconsistent with dashboard; avoid in replication v2 |
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` PK | = `auth.users.id` |
+| `company_id` | `uuid` | Tenant; `NULL` allowed for a super_admin |
+| `role` | `text` | `super_admin` \| `owner` \| `member` |
+| `is_active` | `boolean` | Owner's grant/revoke switch; revoked = no data access |
+| `full_name`, `email` | `text` | Display |
 
 ---
 
-## Table: `expenses`
+## Business tables
 
-| Column | Type | Nullable | Default | Notes |
-|--------|------|----------|---------|-------|
-| `id` | `uuid` | NO | `gen_random_uuid()` | Primary key |
-| `project_id` | `uuid` | NO | — | FK → `projects.id` |
-| `amount` | `numeric(12,2)` | NO | — | Expense amount |
-| `description` | `text` | YES | — | What the expense was for |
-| `expense_date` | `date` | NO | — | When expense occurred |
-| `created_at` | `timestamptz` | YES | `now()` | Recommended |
+`clients`, `projects`, `expenses`, `payments` each carry a `company_id` (auto-stamped on insert — see triggers). `projects.client_id` optionally links a project to a CRM client; `client_name` is still stored for display.
+
+### Project status values (canonical)
+
+`site visit requested`, `site visit done`, `quotation sent`, `work started`, `work completed`, `completed`, `rejected` — enforced by a `CHECK` constraint. (`completed` is the final/archived state; `work completed` means work delivered.)
 
 ---
 
-## Table: `payments`
+## Access helper functions
 
-| Column | Type | Nullable | Default | Notes |
-|--------|------|----------|---------|-------|
-| `id` | `uuid` | NO | `gen_random_uuid()` | Primary key |
-| `project_id` | `uuid` | NO | — | FK → `projects.id` |
-| `amount` | `numeric(12,2)` | NO | — | Payment received |
-| `payment_date` | `date` | NO | — | When payment was received |
-| `created_at` | `timestamptz` | YES | `now()` | Recommended |
+`SECURITY DEFINER` functions read `profiles` without tripping RLS recursion:
+
+- `current_company_id()` — caller's `company_id`
+- `is_super_admin()` — caller has the super_admin role
+- `is_company_owner()` — caller has the owner role
+- `is_active_member()` — caller is active and belongs to a company
 
 ---
 
-## Indexes (recommended)
+## Row Level Security
+
+RLS is enabled on every table; policies are granted to the `authenticated` role. The core predicate on business tables:
 
 ```sql
-CREATE INDEX idx_expenses_project_id ON expenses(project_id);
-CREATE INDEX idx_expenses_expense_date ON expenses(expense_date DESC);
-CREATE INDEX idx_payments_project_id ON payments(project_id);
-CREATE INDEX idx_payments_payment_date ON payments(payment_date DESC);
-CREATE INDEX idx_projects_status ON projects(status);
-CREATE INDEX idx_projects_start_date ON projects(start_date DESC);
+USING ( is_super_admin() OR (is_active_member() AND company_id = current_company_id()) )
 ```
+
+- super_admin bypasses the company filter (sees all)
+- owner/member match only their own `company_id`
+- a revoked member (`is_active = false`) matches nothing
+
+`profiles` allows reading your own row, your company's rows, or all (super_admin); owners may update members in their company. `companies` is readable/updatable by its owner (and super_admin).
 
 ---
 
-## Row Level Security (RLS)
+## Triggers
 
-The current app has **no authentication**. For replication to match current behavior, enable RLS and add permissive anon policies:
+- `set_company_id()` — `BEFORE INSERT` on `clients`/`projects`/`expenses`/`payments`; stamps `company_id = current_company_id()` so the client never sends it.
+- `guard_profile_self_update()` — `BEFORE UPDATE` on `profiles`; blocks a non-super-admin from changing their own `role`, `is_active`, or `company_id` (prevents self-escalation).
+
+---
+
+## Onboarding RPC
 
 ```sql
-ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
-ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
-ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
-
--- WARNING: These policies allow unrestricted public access.
--- Replace with auth.uid()-based policies before any public deployment.
-
-CREATE POLICY "anon_all_projects" ON projects
-  FOR ALL TO anon USING (true) WITH CHECK (true);
-
-CREATE POLICY "anon_all_expenses" ON expenses
-  FOR ALL TO anon USING (true) WITH CHECK (true);
-
-CREATE POLICY "anon_all_payments" ON payments
-  FOR ALL TO anon USING (true) WITH CHECK (true);
+create_company_and_join(p_name text, p_full_name text) returns uuid
 ```
 
-**Replication v2 recommendation:** Integrate Supabase Auth and scope policies to authenticated users or organization IDs.
+`SECURITY DEFINER` function that atomically creates a company and an `owner` profile for the caller, sidestepping the RLS chicken-and-egg of inserting a company before a profile exists. Called from `OnboardingPage` via `supabase.rpc(...)`.
 
 ---
 
-## Optional trigger: sync `amount_received` on payment insert
+## Seeding the super admin
 
-The app does **not** update `projects.amount_received` when payments are recorded. For replication v2, add this trigger:
+Sign up once, then promote that user via SQL (see the note at the bottom of [`schema.sql`](./schema.sql)):
 
 ```sql
-CREATE OR REPLACE FUNCTION sync_amount_received_on_payment()
-RETURNS TRIGGER AS $$
-BEGIN
-  UPDATE projects
-  SET amount_received = COALESCE(amount_received, 0) + NEW.amount
-  WHERE id = NEW.project_id;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-CREATE TRIGGER trg_sync_amount_received
-  AFTER INSERT ON payments
-  FOR EACH ROW
-  EXECUTE FUNCTION sync_amount_received_on_payment();
+UPDATE profiles SET role = 'super_admin', is_active = true
+WHERE id = (SELECT id FROM auth.users WHERE email = 'you@example.com');
 ```
-
-If you add this trigger, pending balances in the UI will stay accurate without app code changes.
 
 ---
 
-## PostgREST relationship requirements
+## Optional: sync `amount_received` on payment insert
 
-For embed queries to work, Supabase must detect foreign keys:
-
-- `expenses.project_id` → `projects.id`
-- `payments.project_id` → `projects.id`
-
-Ensure foreign keys are created as in [`schema.sql`](./schema.sql).
-
----
-
-## Application operations reference
-
-### INSERT into `projects`
-
-```js
-{
-  project_title, client_name, location, work_description,
-  total_quoted_amount, amount_received, status, completion_percent,
-  start_date,  // null if empty string
-  end_date     // null if empty string
-}
-```
-
-### UPDATE `projects`
-
-```js
-{
-  status, completion_percent, start_date, end_date, total_quoted_amount
-}
-// end_date set to null unless status is 'work ended' or 'Completed'
-```
-
-### INSERT into `expenses`
-
-```js
-{ project_id, amount, description, expense_date }
-```
-
-### INSERT into `payments`
-
-```js
-{ project_id, amount, payment_date }
-// amount may be string from HTML input; Postgres coerces to numeric
-```
-
-### SELECT patterns
-
-| Query | Used in |
-|-------|---------|
-| `projects.select('*').order('start_date', { ascending: false })` | ProjectTable |
-| `projects.select('*').eq('id', id).single()` | ProjectDetailsPage |
-| `projects.select('id, project_title')` | Expense/payment form dropdowns |
-| `expenses.select('*')` | Dashboard |
-| `expenses.select('..., projects(status)')` | ExpenseTable |
-| `payments.select('*')` | Dashboard |
-| `payments.select('*, projects(project_title)')` | PaymentsTable |
-| Count queries with status filters | Dashboard |
+The app does not update `projects.amount_received` when a payment is recorded. A commented trigger in earlier versions can be re-added if you want pending balances to update automatically; current behavior keeps `amount_received` as a manual field.
 
 ---
 
 ## Executable migration
 
-Run [`schema.sql`](./schema.sql) in the Supabase SQL Editor to create all tables, indexes, RLS policies, and the optional payment sync trigger.
+Run [`schema.sql`](./schema.sql) in the Supabase SQL Editor. It drops existing tables (wiping data), then recreates tables, indexes, helper functions, the onboarding RPC, triggers, and all RLS policies.

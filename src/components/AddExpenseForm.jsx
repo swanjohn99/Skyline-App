@@ -1,54 +1,43 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
+import { listOpenProjects } from '../api/projects';
+import { createExpense } from '../api/expenses';
+import { todayInputValue } from '../utils/format';
 
 function AddExpenseForm({ onExpenseAdded, onCancel }) {
   const [projects, setProjects] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
   const [expense, setExpense] = useState({
     project_id: '',
     amount: '',
     description: '',
-    date: new Date().toISOString().split('T')[0]
+    date: todayInputValue(),
   });
 
   useEffect(() => {
-    async function fetchProjects() {
-      const { data } = await supabase
-        .from('projects')
-        .select('id, project_title, status');
-
-      if (data) {
-        setProjects(data.filter((project) => {
-          const status = project.status?.toLowerCase().trim();
-          return status !== 'completed';
-        }));
-      }
-    }
-    fetchProjects();
+    listOpenProjects().then(setProjects).catch(() => setProjects([]));
   }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setSubmitting(true);
+    setError(null);
 
-    const { error } = await supabase.from('expenses').insert({
-      project_id: expense.project_id,
-      amount: Number(expense.amount),
-      description: expense.description,
-      expense_date: expense.date
-    });
-
-    if (!error) {
-      setExpense({
-        project_id: '',
-        amount: '',
-        description: '',
-        date: new Date().toISOString().split('T')[0]
+    try {
+      await createExpense({
+        project_id: expense.project_id,
+        amount: Number(expense.amount),
+        description: expense.description,
+        expense_date: expense.date,
       });
+      setExpense({ project_id: '', amount: '', description: '', date: todayInputValue() });
       onExpenseAdded?.();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   }
 
   return (
@@ -107,6 +96,7 @@ function AddExpenseForm({ onExpenseAdded, onCancel }) {
           {submitting ? 'Adding…' : 'Add Expense'}
         </button>
         <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
+        {error && <span className="form-message form-message--error">{error}</span>}
       </div>
     </form>
   );

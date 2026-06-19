@@ -1,22 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { supabase } from '../supabaseClient';
 import { ArrowLeft } from 'lucide-react';
-import { formatCurrency } from '../utils/formatCurrency';
-
-function getStatusClass(status) {
-  const normalized = status?.toLowerCase().trim() ?? '';
-  if (normalized === 'site visit requested') return 'status-badge status-badge--site-visit-requested';
-  if (normalized === 'site visit done') return 'status-badge status-badge--site-visit-done';
-  if (normalized === 'quotation sent') return 'status-badge status-badge--quotation';
-  if (normalized === 'work started') return 'status-badge status-badge--work-started';
-  if (normalized === 'work completed' || normalized === 'work ended') {
-    return 'status-badge status-badge--work-completed';
-  }
-  if (normalized === 'completed') return 'status-badge status-badge--completed';
-  if (normalized === 'rejected') return 'status-badge status-badge--rejected';
-  return 'status-badge status-badge--default';
-}
+import { getProject } from '../api/projects';
+import { listExpensesByProject } from '../api/expenses';
+import { formatCurrency, formatDate } from '../utils/format';
+import { statusBadgeClass } from '../constants';
 
 export default function ProjectDetailsPage() {
   const { id } = useParams();
@@ -24,14 +12,8 @@ export default function ProjectDetailsPage() {
   const [expenses, setExpenses] = useState([]);
 
   useEffect(() => {
-    async function fetchData() {
-      const { data: projData } = await supabase.from('projects').select('*').eq('id', id).single();
-      setProject(projData);
-
-      const { data: expData } = await supabase.from('expenses').select('*').eq('project_id', id);
-      setExpenses(expData || []);
-    }
-    fetchData();
+    getProject(id).then(setProject).catch(() => setProject(null));
+    listExpensesByProject(id).then(setExpenses).catch(() => setExpenses([]));
   }, [id]);
 
   if (!project) {
@@ -58,7 +40,7 @@ export default function ProjectDetailsPage() {
       <header className="page-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <h1 className="page-title">{project.project_title}</h1>
-          <span className={getStatusClass(project.status)}>{project.status}</span>
+          <span className={statusBadgeClass(project.status)}>{project.status}</span>
         </div>
         {project.client_name && (
           <p className="page-subtitle">{project.client_name}{project.location ? ` · ${project.location}` : ''}</p>
@@ -130,7 +112,7 @@ export default function ProjectDetailsPage() {
               expenses.map(exp => (
                 <tr key={exp.id}>
                   <td>{exp.description || '—'}</td>
-                  <td>{exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</td>
+                  <td>{formatDate(exp.expense_date)}</td>
                   <td className="data-table-amount">{formatCurrency(exp.amount)}</td>
                 </tr>
               ))

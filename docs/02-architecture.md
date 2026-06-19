@@ -16,9 +16,10 @@ flowchart LR
   Supa --> PG
 ```
 
-- **No custom API server** — all database access is client-side via the Supabase JavaScript client
+- **No custom API server** — all database access is client-side via the Supabase JavaScript client, wrapped in a typed `src/api/` data-access layer
 - **No server-side rendering** — pure client-side React
-- **No global state library** — local component state + parent `refresh` counters
+- **Multi-tenant** — every row is scoped to a `company_id`; Postgres Row Level Security (RLS) enforces isolation. Roles: `super_admin`, `owner`, `member`
+- **Global auth state** — `AuthProvider` (React context) holds the session + profile/role; everything else stays local component state + parent `refresh` counters
 
 ---
 
@@ -33,13 +34,17 @@ Skyline-App/
 ├── .env                    # VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
 ├── docs/                   # This documentation pack
 └── src/
-    ├── main.jsx            # React entry point
-    ├── App.jsx             # Shell: sidebar + routes
+    ├── main.jsx            # React entry point (wraps App in AuthProvider)
+    ├── App.jsx             # Shell: auth/onboarding gate, sidebar + routes
     ├── App.css             # Layout, pages, forms, metrics
     ├── index.css           # Design tokens, global reset
+    ├── constants.js        # Roles, project statuses, badge/chart helpers
     ├── supabaseClient.js   # Supabase client singleton
-    ├── pages/              # Route-level views (5 files)
-    └── components/         # Reusable UI (7 files + 3 CSS)
+    ├── api/                # Data-access layer (auth, profiles, clients, projects, expenses, payments, dashboard)
+    ├── context/            # AuthProvider + useAuth hook
+    ├── utils/              # format.js (currency + date helpers)
+    ├── pages/              # Route-level views
+    └── components/         # Reusable UI
 ```
 
 ---
@@ -50,22 +55,30 @@ Skyline-App/
 
 | File | Responsibility |
 |------|----------------|
-| `src/main.jsx` | Mount `<App />` in `#root` under `StrictMode`; import `index.css` |
-| `src/App.jsx` | `BrowserRouter`, sidebar navigation, route definitions |
+| `src/main.jsx` | Mount `<App />` in `#root` under `StrictMode`, wrapped in `<AuthProvider>`; import `index.css` |
+| `src/App.jsx` | Auth + onboarding gate, `BrowserRouter`, role-aware sidebar, route definitions |
 | `src/App.css` | App shell, page layouts, shared form/button/card classes |
 | `src/index.css` | CSS custom properties (design tokens), typography reset |
+| `src/constants.js` | `ROLES`, `PROJECT_STATUSES`, status badge/helpers, chart colors, month labels |
 | `src/supabaseClient.js` | `createClient(VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)` |
+| `src/context/AuthContext.jsx` + `auth.js` | `AuthProvider` (session + profile + role); `useAuth()` hook |
+| `src/api/*.js` | Data-access layer — the only place that calls `supabase.from(...)` |
+| `src/utils/format.js` | `formatCurrency`, `formatCompactCurrency`, `formatDate`, date input helpers |
 | `index.html` | Page title, favicon, Google Fonts CDN links |
 
 ### Pages (`src/pages/`)
 
 | File | Route | Purpose |
 |------|-------|---------|
-| `Dashboard.jsx` | `/` | Metric cards + Recharts bar charts |
+| `Dashboard.jsx` | `/` | Metric cards + 12-month Income vs Expenses bar chart |
 | `ProjectPage.jsx` | `/projects` | Add form, project table, edit modal |
 | `ProjectDetailsPage.jsx` | `/projects/:id` | Single project detail + expenses |
+| `ClientsPage.jsx` | `/clients` | CRM: client CRUD, search, tags |
 | `ExpensePage.jsx` | `/expenses` | Add expense form + expense table |
 | `Payments.jsx` | `/payments` | Add payment form + payment table |
+| `TeamPage.jsx` | `/team` | Member management (owner/super_admin only) |
+| `LoginPage.jsx` | — | Sign in / sign up (shown when logged out) |
+| `OnboardingPage.jsx` | — | Create company (shown when logged in without a profile) |
 
 ### Components (`src/components/`)
 
@@ -98,10 +111,12 @@ React Router v7 with `BrowserRouter`. **No `basename` configured today** (see de
 | `/` | `Dashboard` | Dashboard |
 | `/projects` | `ProjectPage` | Projects |
 | `/projects/:id` | `ProjectDetailsPage` | — (linked from table) |
+| `/clients` | `ClientsPage` | Clients |
 | `/expenses` | `ExpensePage` | Expenses |
 | `/payments` | `Payments` | Payments |
+| `/team` | `TeamPage` | Team (owner / super_admin only) |
 
-Navigation uses `NavLink` with active class styling. Layout is persistent: left sidebar + scrollable main content.
+Navigation uses `NavLink` with active class styling. Layout is persistent: left sidebar + scrollable main content. Before routes render, `App` gates on auth state: logged out -> `LoginPage`; logged in without a profile -> `OnboardingPage`.
 
 ---
 
@@ -111,17 +126,22 @@ Navigation uses `NavLink` with active class styling. Layout is persistent: left 
 sequenceDiagram
   participant Page as Page component
   participant Child as Table or Form
+  participant API as src/api module
   participant SB as supabaseClient
-  participant DB as PostgreSQL
+  participant DB as PostgreSQL (RLS)
 
   Page->>Child: refreshKey prop
-  Child->>SB: .from(table).select(...)
-  SB->>DB: PostgREST HTTP
-  DB-->>SB: rows
-  SB-->>Child: data / error
+  Child->>API: listProjects() / createExpense(...)
+  API->>SB: .from(table).select/insert(...)
+  SB->>DB: PostgREST HTTP (JWT)
+  DB-->>SB: rows scoped by RLS
+  SB-->>API: data / throws on error
+  API-->>Child: data
   Child-->>Page: onProjectAdded / onUpdate callback
   Page->>Page: setRefresh(n + 1)
 ```
+
+Components never call `supabase.from(...)` directly — they import functions from `src/api/`. The logged-in JWT is attached automatically, so the database runs queries as the `authenticated` role and RLS filters rows to the caller's company.
 
 **Refresh pattern:** Parent pages hold `const [refresh, setRefresh] = useState(0)`. After a successful create or update, they call `setRefresh(prev => prev + 1)`. Child tables pass `refreshKey={refresh}` into `useEffect` dependencies to re-fetch.
 
@@ -131,23 +151,16 @@ sequenceDiagram
 
 ## Supabase usage summary
 
-| Table | SELECT | INSERT | UPDATE | DELETE |
-|-------|--------|--------|--------|--------|
-| `projects` | All pages | AddProjectForm | UpdateProjectForm | — |
-| `expenses` | Dashboard, ExpenseTable, ProjectDetails | AddExpenseForm | — | — |
-| `payments` | Dashboard, PaymentsTable | AddPaymentForm | — | — |
+| Table | SELECT | INSERT | UPDATE | DELETE | api module |
+|-------|--------|--------|--------|--------|------------|
+| `companies` | onboarding/profile | OnboardingPage (RPC) | owner | owner | `profiles.js` |
+| `profiles` | AuthContext, TeamPage | sign-up / onboarding | TeamPage | — | `profiles.js` |
+| `clients` | ClientsPage, AddProjectForm | AddClientForm | AddClientForm | ClientsPage | `clients.js` |
+| `projects` | All pages | AddProjectForm | UpdateProjectForm | — | `projects.js` |
+| `expenses` | Dashboard, ExpenseTable, ProjectDetails | AddExpenseForm | — | — | `expenses.js` |
+| `payments` | Dashboard, PaymentsTable | AddPaymentForm | — | — | `payments.js` |
 
-**PostgREST embeds (joins):**
-
-```js
-// ExpenseTable
-.from('expenses').select('amount, description, expense_date, projects(status)')
-
-// PaymentsTable
-.from('payments').select('*, projects(project_title)')
-```
-
-Full schema: [03-database-schema.md](./03-database-schema.md)
+All access is scoped by RLS to the caller's `company_id` (super_admin sees all). `company_id` is auto-stamped on INSERT by a database trigger, so the client never sends it. Full schema and policies: [03-database-schema.md](./03-database-schema.md) and `docs/schema.sql`.
 
 ---
 
@@ -221,6 +234,6 @@ Vite exposes only variables prefixed with `VITE_`. They are inlined at build tim
 - Unit or integration tests
 - CI/CD configuration
 - Supabase migration files in repo (schema documented in `docs/schema.sql`)
-- Authentication middleware
+- Email invitations (members self-sign-up, then an owner grants access)
 - Error boundary components
 - Service workers / PWA

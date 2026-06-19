@@ -1,12 +1,9 @@
 import { useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { updateProject } from '../api/projects';
+import { PROJECT_STATUSES, COMPLETED_STATUSES } from '../constants';
+import { toDateInputValue } from '../utils/format';
 import AddPaymentForm from './AddPaymentForm';
 import './UpdateProjectForm.css';
-
-const STATUS_OPTIONS = [
-  'site visit requested', 'site visit done', 'quotation sent', 
-  'work started', 'work completed', 'Completed', 'rejected'
-];
 
 function UpdateProjectForm({ project, onUpdate, onClose }) {
   const [form, setForm] = useState({
@@ -16,41 +13,36 @@ function UpdateProjectForm({ project, onUpdate, onClose }) {
     end_date: project.end_date || '',
     total_quoted_amount: project.total_quoted_amount || 0
   });
-  
+
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
   const isCompleted = project.status?.toLowerCase().trim() === 'completed';
 
   async function handleUpdate(e) {
     e.preventDefault();
     setSubmitting(true);
-  
-    const canHaveEndDate = ['work completed', 'work ended', 'Completed'].includes(form.status);
+    setError(null);
+
+    const canHaveEndDate = COMPLETED_STATUSES.includes(form.status);
     const finalEndDate = canHaveEndDate ? form.end_date : null;
-  
-    const { error } = await supabase
-      .from('projects')
-      .update({
+
+    try {
+      await updateProject(project.id, {
         status: form.status,
-        completion_percent: Number(form.completion_percent), 
+        completion_percent: Number(form.completion_percent),
         start_date: form.start_date || null,
-        end_date: finalEndDate, 
-        total_quoted_amount: Number(form.total_quoted_amount)
-      })
-      .eq('id', project.id);
-  
-    if (error) {
-      console.error("Supabase Error:", error);
-    } else {
+        end_date: finalEndDate,
+        total_quoted_amount: Number(form.total_quoted_amount),
+      });
       onUpdate();
       onClose();
+    } catch (err) {
+      setError(err.message);
+      setSubmitting(false);
     }
-    setSubmitting(false);
   }
 
-  const formatDateForInput = (dateString) => {
-    if (!dateString) return '';
-    return dateString.split('T')[0];
-  };
+  const formatDateForInput = toDateInputValue;
 
   return (
     <div className="skyline-modal-overlay">
@@ -69,11 +61,11 @@ function UpdateProjectForm({ project, onUpdate, onClose }) {
               onChange={(e) => setForm({...form, status: e.target.value})}
               required
             >
-              {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+              {PROJECT_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
 
-          {['work started', 'work completed', 'work ended', 'Completed'].includes(form.status) && (
+          {['work started', ...COMPLETED_STATUSES].includes(form.status) && (
             <div className="form-group half-width">
               <label>Completion (%)</label>
               <input 
@@ -95,7 +87,7 @@ function UpdateProjectForm({ project, onUpdate, onClose }) {
               />
             </div>
             
-            {['work completed', 'work ended', 'Completed'].includes(form.status) && (
+            {COMPLETED_STATUSES.includes(form.status) && (
               <div className="form-group half-width">
                 <label>End Date</label>
                 <input 
@@ -127,6 +119,8 @@ function UpdateProjectForm({ project, onUpdate, onClose }) {
             </div>
           )}
           
+          {error && <p className="form-message form-message--error">{error}</p>}
+
           <div className="modal-actions">
             <button type="submit" className="save-btn" disabled={submitting}>
               {submitting ? 'Saving...' : 'Save Changes'}

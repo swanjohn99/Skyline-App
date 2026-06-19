@@ -5,11 +5,13 @@
 Skyline-App is an internal web tool for **Skyline Constructions** to manage construction jobs from initial site visit through completion. Staff can:
 
 - Create and track **projects** with client details, quoted amounts, and a status pipeline
+- Manage **clients** in a lightweight **CRM** (contact details, tags, source) for marketing
 - Log **expenses** against projects
 - Record **payments** received from clients
-- View a **dashboard** with project counts, revenue metrics, and cash-flow charts
+- View a **dashboard** with project counts, revenue metrics, and a 12-month income vs expenses chart
+- Manage a **team**: owners grant or revoke access for members of their company
 
-There is no custom backend server. The browser talks directly to Supabase (PostgreSQL via PostgREST).
+There is no custom backend server. The browser talks directly to Supabase (PostgreSQL via PostgREST), secured by Supabase Auth + Row Level Security.
 
 ---
 
@@ -17,7 +19,13 @@ There is no custom backend server. The browser talks directly to Supabase (Postg
 
 **Construction office staff** — project managers, accountants, or owners who need a lightweight CRM + ledger for active jobs.
 
-**Current access model:** No login screen. Anyone with the app URL and a valid Supabase anon key can read and write all data. Treat this as a single-tenant internal tool on a trusted network, not a public multi-user product.
+**Access model (multi-tenant):**
+
+- **super_admin** (the platform creator) — sees data across every company
+- **owner** — created a company; sees only their company's data; grants/revokes member access and sets roles
+- **member** — belongs to a company; sees that company's data only while their access is active
+
+Login is required (Supabase Auth: email/password or Google). New users sign up, create a company (becoming its owner) or wait for an owner to grant access. Data isolation is enforced in the database by Row Level Security keyed on `company_id` and `auth.uid()` — not just in the UI.
 
 ---
 
@@ -67,10 +75,13 @@ flowchart TD
 
 ## In scope (current version)
 
+- Multi-tenant auth with super_admin / owner / member roles (Supabase Auth + RLS)
+- Company onboarding and team access management (grant/revoke, set role)
+- CRM: full CRUD for clients with search and tags
 - CRUD for projects (create, read, update — no delete)
 - Create and list expenses
 - Create and list payments
-- Dashboard with 4 metric cards and 2 bar charts
+- Dashboard with metric cards and a 12-month income vs expenses chart
 - Project detail view
 - Status badges and color coding
 - Responsive sidebar layout
@@ -81,7 +92,8 @@ flowchart TD
 
 | Feature | Notes |
 |---------|-------|
-| Authentication / roles | No Supabase Auth integration |
+| Email invitations | Members self-sign-up; owner grants access |
+| Marketing campaign sending | CRM stores/segments contacts only |
 | Edit/delete expenses | Insert + list only |
 | Edit/delete payments | Insert + list only |
 | Invoicing / PDF export | Not implemented |
@@ -89,7 +101,7 @@ flowchart TD
 | Scheduling / calendar | Not implemented |
 | Notifications / email | Not implemented |
 | Mobile native app | Web only |
-| Multi-currency | Hardcoded `$` display |
+| Multi-currency | INR (`en-IN`) display |
 | Audit log | Not implemented |
 
 ---
@@ -106,14 +118,12 @@ The app is deployed as a static SPA under the `/app/` subpath. See [07-deploymen
 
 Document these when replicating so you can choose to preserve or fix behavior:
 
-1. **Payments vs `amount_received`** — Recording a payment inserts into `payments` but does not update `projects.amount_received`. Pending balances in the project table can become stale unless manually set at project creation.
+1. **Payments vs `amount_received`** — Recording a payment inserts into `payments` but does not update `projects.amount_received`. Pending balances in the project table can become stale unless manually set at project creation. (An optional sync trigger is included but commented out in `docs/schema.sql`.)
 
-2. **Status inconsistency** — Add form uses `work ended`; update form also offers `Completed` (capital C). Dashboard logic only recognizes `work ended`.
+2. **Profit label** — Dashboard "Profit (Year)" sums quoted amounts for completed jobs, not net margin (income minus expenses).
 
-3. **Misleading "Profit" label** — Dashboard "Profit" sums quoted amounts for completed jobs, not net margin (income minus expenses).
+3. **Self role-change guard** — A database trigger prevents a non-super-admin from changing their own role/status/company; owners manage other members only.
 
-4. **No error states** — Missing projects show an infinite loading spinner; most forms log errors to console only.
-
-5. **No auth** — Suitable only for trusted internal use with restricted Supabase keys.
+4. **Super admin seeding** — The first super_admin must be promoted manually via SQL (see the seed note at the bottom of `docs/schema.sql`).
 
 See [04-features-and-business-rules.md](./04-features-and-business-rules.md) for detailed behavior specs.
