@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Building2, LockKeyhole, Mail } from 'lucide-react';
-import { signInWithPassword, signUpWithPassword } from '../api/auth';
+import { requestPasswordReset } from '../api/auth';
+import { useAuth } from '../context/auth';
 
 export default function LoginPage() {
-  const [mode, setMode] = useState('signin');
+  const { signIn, signUp } = useAuth();
+  const [mode, setMode] = useState('signin'); // 'signin' | 'signup' | 'forgot'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -11,6 +13,7 @@ export default function LoginPage() {
   const [message, setMessage] = useState('');
 
   const isSignUp = mode === 'signup';
+  const isForgot = mode === 'forgot';
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -18,26 +21,34 @@ export default function LoginPage() {
     setError('');
     setMessage('');
 
-    if (isSignUp) {
-      const { data, error: signUpError } = await signUpWithPassword(email, password);
-      if (signUpError) {
-        setError(signUpError.message);
-      } else if (!data.session) {
-        setMessage('Account created. Check your email to confirm, then sign in.');
-        setMode('signin');
+    try {
+      if (isForgot) {
+        await requestPasswordReset(email);
+        setMessage('If an account exists for that email, a reset link is on its way.');
+      } else if (isSignUp) {
+        await signUp(email, password);
+      } else {
+        await signIn(email, password);
       }
-    } else {
-      const { error: signInError } = await signInWithPassword(email, password);
-      if (signInError) setError(signInError.message);
+    } catch (err) {
+      setError(err.message || 'Something went wrong.');
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   }
 
-  function toggleMode() {
-    setMode(isSignUp ? 'signin' : 'signup');
+  function switchMode(next) {
+    setMode(next);
     setError('');
     setMessage('');
   }
+
+  const title = isForgot ? 'Reset your password' : isSignUp ? 'Create your account' : 'Welcome back';
+  const subtitle = isForgot
+    ? "Enter your email and we'll send you a reset link."
+    : isSignUp
+      ? 'Sign up to create or join a company workspace.'
+      : 'Sign in to manage your projects, expenses, and payments.';
 
   return (
     <main className="login-page">
@@ -46,12 +57,8 @@ export default function LoginPage() {
           <Building2 size={28} strokeWidth={2.25} />
         </div>
         <p className="login-eyebrow">Skyline Constructions</p>
-        <h1>{isSignUp ? 'Create your account' : 'Welcome back'}</h1>
-        <p className="login-subtitle">
-          {isSignUp
-            ? 'Sign up to create or join a company workspace.'
-            : 'Sign in to manage your projects, expenses, and payments.'}
-        </p>
+        <h1>{title}</h1>
+        <p className="login-subtitle">{subtitle}</p>
 
         <form onSubmit={handleSubmit} className="login-form">
           <label htmlFor="email">Email address</label>
@@ -68,40 +75,70 @@ export default function LoginPage() {
             />
           </div>
 
-          <label htmlFor="password">Password</label>
-          <div className="login-input">
-            <LockKeyhole size={18} />
-            <input
-              id="password"
-              type="password"
-              autoComplete={isSignUp ? 'new-password' : 'current-password'}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder={isSignUp ? 'Create a password' : 'Enter your password'}
-              required
-              minLength={6}
-            />
-          </div>
+          {!isForgot && (
+            <>
+              <label htmlFor="password">Password</label>
+              <div className="login-input">
+                <LockKeyhole size={18} />
+                <input
+                  id="password"
+                  type="password"
+                  autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder={isSignUp ? 'Create a password' : 'Enter your password'}
+                  required
+                  minLength={6}
+                />
+              </div>
+            </>
+          )}
+
+          {!isSignUp && !isForgot && (
+            <button
+              type="button"
+              className="login-toggle-btn"
+              style={{ alignSelf: 'flex-end' }}
+              onClick={() => switchMode('forgot')}
+            >
+              Forgot password?
+            </button>
+          )}
 
           {error && <p className="login-error">{error}</p>}
           {message && <p className="login-message">{message}</p>}
 
-          <button
-            type="submit"
-            className="btn btn-primary login-submit"
-            disabled={submitting}
-          >
+          <button type="submit" className="btn btn-primary login-submit" disabled={submitting}>
             {submitting
-              ? (isSignUp ? 'Creating account…' : 'Signing in…')
-              : (isSignUp ? 'Sign up' : 'Sign in')}
+              ? 'Please wait…'
+              : isForgot
+                ? 'Send reset link'
+                : isSignUp
+                  ? 'Sign up'
+                  : 'Sign in'}
           </button>
         </form>
 
         <p className="login-toggle">
-          {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
-          <button type="button" className="login-toggle-btn" onClick={toggleMode}>
-            {isSignUp ? 'Sign in' : 'Sign up'}
-          </button>
+          {isForgot ? (
+            <>
+              Remembered it?{' '}
+              <button type="button" className="login-toggle-btn" onClick={() => switchMode('signin')}>
+                Back to sign in
+              </button>
+            </>
+          ) : (
+            <>
+              {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+              <button
+                type="button"
+                className="login-toggle-btn"
+                onClick={() => switchMode(isSignUp ? 'signin' : 'signup')}
+              >
+                {isSignUp ? 'Sign in' : 'Sign up'}
+              </button>
+            </>
+          )}
         </p>
       </section>
     </main>

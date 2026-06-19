@@ -2,23 +2,24 @@
 
 ## System pattern
 
-Skyline-App follows a **static SPA + BaaS** architecture:
+Skyline-App follows a **SPA + PHP API + MariaDB** architecture:
 
 ```mermaid
 flowchart LR
-  Browser["React SPA (browser)"]
-  Vite["Vite (dev / build)"]
-  Supa["Supabase PostgREST API"]
-  PG[("PostgreSQL")]
+  Browser["React SPA (/app)"]
+  PHP["PHP API (/api, PDO)"]
+  DB[("MariaDB")]
+  SMTP["SMTP"]
 
-  Vite --> Browser
-  Browser -->|"@supabase/supabase-js"| Supa
-  Supa --> PG
+  Browser -->|"fetch, session cookie"| PHP
+  PHP --> DB
+  PHP -->|"reset emails"| SMTP
 ```
 
-- **No custom API server** — all database access is client-side via the Supabase JavaScript client, wrapped in a typed `src/api/` data-access layer
+- **PHP API server** — the SPA never touches the database directly; all access goes through `fetch` calls to the PHP endpoints under `/api/`, wrapped in the `src/api/` data-access layer
 - **No server-side rendering** — pure client-side React
-- **Multi-tenant** — every row is scoped to a `company_id`; Postgres Row Level Security (RLS) enforces isolation. Roles: `super_admin`, `owner`, `member`
+- **Multi-tenant** — every row is scoped to a `company_id`; isolation is enforced in the PHP layer (each query is filtered by the caller's company). Roles: `super_admin`, `owner`, `member`
+- **Auth** — email + password with PHP session cookies (`password_hash`/`password_verify`); password resets emailed via SMTP
 - **Global auth state** — `AuthProvider` (React context) holds the session + profile/role; everything else stays local component state + parent `refresh` counters
 
 ---
@@ -31,7 +32,8 @@ Skyline-App/
 ├── package.json            # Dependencies and scripts
 ├── vite.config.js          # Vite + React Compiler config
 ├── eslint.config.js        # ESLint flat config
-├── .env                    # VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+├── .env                    # Frontend env (VITE_API_BASE, VITE_DEV_API_TARGET)
+├── api/                    # PHP API: config, lib/, routes/, schema.sql, .env
 ├── docs/                   # This documentation pack
 └── src/
     ├── main.jsx            # React entry point (wraps App in AuthProvider)
@@ -39,7 +41,7 @@ Skyline-App/
     ├── App.css             # Layout, pages, forms, metrics
     ├── index.css           # Design tokens, global reset
     ├── constants.js        # Roles, project statuses, badge/chart helpers
-    ├── supabaseClient.js   # Supabase client singleton
+    ├── apiClient.js        # fetch wrapper for the PHP API
     ├── api/                # Data-access layer (auth, profiles, clients, projects, expenses, payments, dashboard)
     ├── context/            # AuthProvider + useAuth hook
     ├── utils/              # format.js (currency + date helpers)
@@ -60,9 +62,9 @@ Skyline-App/
 | `src/App.css` | App shell, page layouts, shared form/button/card classes |
 | `src/index.css` | CSS custom properties (design tokens), typography reset |
 | `src/constants.js` | `ROLES`, `PROJECT_STATUSES`, status badge/helpers, chart colors, month labels |
-| `src/supabaseClient.js` | `createClient(VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)` |
+| `src/apiClient.js` | `fetch` wrapper for the PHP API (`/api`), session cookies, JSON errors |
 | `src/context/AuthContext.jsx` + `auth.js` | `AuthProvider` (session + profile + role); `useAuth()` hook |
-| `src/api/*.js` | Data-access layer — the only place that calls `supabase.from(...)` |
+| `src/api/*.js` | Data-access layer — the only place that calls the PHP API |
 | `src/utils/format.js` | `formatCurrency`, `formatCompactCurrency`, `formatDate`, date input helpers |
 | `index.html` | Page title, favicon, Google Fonts CDN links |
 
@@ -127,21 +129,24 @@ sequenceDiagram
   participant Page as Page component
   participant Child as Table or Form
   participant API as src/api module
-  participant SB as supabaseClient
-  participant DB as PostgreSQL (RLS)
+  participant HTTP as apiClient (fetch)
+  participant PHP as PHP API
+  participant DB as MariaDB
 
   Page->>Child: refreshKey prop
   Child->>API: listProjects() / createExpense(...)
-  API->>SB: .from(table).select/insert(...)
-  SB->>DB: PostgREST HTTP (JWT)
-  DB-->>SB: rows scoped by RLS
-  SB-->>API: data / throws on error
+  API->>HTTP: api.get/post(path, body)
+  HTTP->>PHP: fetch (session cookie)
+  PHP->>DB: PDO query scoped by company_id
+  DB-->>PHP: rows
+  PHP-->>HTTP: JSON / { message } on error
+  HTTP-->>API: data / throws Error(message)
   API-->>Child: data
   Child-->>Page: onProjectAdded / onUpdate callback
   Page->>Page: setRefresh(n + 1)
 ```
 
-Components never call `supabase.from(...)` directly — they import functions from `src/api/`. The logged-in JWT is attached automatically, so the database runs queries as the `authenticated` role and RLS filters rows to the caller's company.
+Components never call the API directly — they import functions from `src/api/`, which use the `src/apiClient.js` fetch wrapper. The session cookie is sent automatically (`credentials: 'include'`), and each PHP endpoint scopes its queries to the caller's `company_id`.
 
 **Refresh pattern:** Parent pages hold `const [refresh, setRefresh] = useState(0)`. After a successful create or update, they call `setRefresh(prev => prev + 1)`. Child tables pass `refreshKey={refresh}` into `useEffect` dependencies to re-fetch.
 
@@ -149,18 +154,18 @@ Components never call `supabase.from(...)` directly — they import functions fr
 
 ---
 
-## Supabase usage summary
+## API usage summary
 
-| Table | SELECT | INSERT | UPDATE | DELETE | api module |
-|-------|--------|--------|--------|--------|------------|
-| `companies` | onboarding/profile | OnboardingPage (RPC) | owner | owner | `profiles.js` |
-| `profiles` | AuthContext, TeamPage | sign-up / onboarding | TeamPage | — | `profiles.js` |
-| `clients` | ClientsPage, AddProjectForm | AddClientForm | AddClientForm | ClientsPage | `clients.js` |
-| `projects` | All pages | AddProjectForm | UpdateProjectForm | — | `projects.js` |
-| `expenses` | Dashboard, ExpenseTable, ProjectDetails | AddExpenseForm | — | — | `expenses.js` |
-| `payments` | Dashboard, PaymentsTable | AddPaymentForm | — | — | `payments.js` |
+| Table | SELECT | INSERT | UPDATE | DELETE | api module | endpoints |
+|-------|--------|--------|--------|--------|------------|-----------|
+| `companies` | onboarding/profile | OnboardingPage | owner | — | `profiles.js` | `POST /companies` |
+| `profiles` | AuthContext, TeamPage | sign-up / onboarding | TeamPage | — | `profiles.js` | `GET /profile`, `GET/PATCH /members` |
+| `clients` | ClientsPage, AddProjectForm | AddClientForm | AddClientForm | ClientsPage | `clients.js` | `/clients` |
+| `projects` | All pages | AddProjectForm | UpdateProjectForm | — | `projects.js` | `/projects` |
+| `expenses` | Dashboard, ExpenseTable, ProjectDetails | AddExpenseForm | — | — | `expenses.js` | `/expenses` |
+| `payments` | Dashboard, PaymentsTable | AddPaymentForm | — | — | `payments.js` | `/payments` |
 
-All access is scoped by RLS to the caller's `company_id` (super_admin sees all). `company_id` is auto-stamped on INSERT by a database trigger, so the client never sends it. Full schema and policies: [03-database-schema.md](./03-database-schema.md) and `docs/schema.sql`.
+All access is scoped in the PHP layer to the caller's `company_id` (super_admin sees all). `company_id` is stamped server-side on INSERT, so the client never sends it. Full schema: [api/schema.sql](../api/schema.sql).
 
 ---
 
@@ -172,9 +177,10 @@ All access is scoped by RLS to the caller's `company_id` (super_admin sees all).
 |---------|---------|---------|
 | `react` / `react-dom` | ^19.2.6 | UI framework |
 | `react-router-dom` | ^7.17.0 | Client-side routing |
-| `@supabase/supabase-js` | ^2.108.1 | Database client |
 | `recharts` | ^3.8.1 | Dashboard bar charts |
 | `lucide-react` | ^1.18.0 | SVG icons |
+
+Backend has no Composer dependencies — the PHP API uses only built-in extensions (`pdo_mysql`, `openssl` for SMTP TLS, `json`).
 
 ### Development
 
@@ -219,12 +225,21 @@ export default defineConfig({
 
 ## Environment variables
 
+**Frontend (`.env`, optional, `VITE_`-prefixed, inlined at build time):**
+
 | Variable | Required | Used in |
 |----------|----------|---------|
-| `VITE_SUPABASE_URL` | Yes | `supabaseClient.js` |
-| `VITE_SUPABASE_ANON_KEY` | Yes | `supabaseClient.js` |
+| `VITE_API_BASE` | No (default `/api`) | `src/apiClient.js` |
+| `VITE_DEV_API_TARGET` | No (dev only) | `vite.config.js` proxy |
 
-Vite exposes only variables prefixed with `VITE_`. They are inlined at build time.
+**Backend (`api/.env`):**
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `DB_HOST` / `DB_PORT` / `DB_NAME` / `DB_USER` / `DB_PASS` | Yes | MariaDB connection |
+| `APP_URL` | Yes | Base URL for password-reset links |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_SECURE` | No | SMTP for reset emails (falls back to `mail()`) |
+| `MAIL_FROM` / `MAIL_FROM_NAME` | No | From address for emails |
 
 ---
 
@@ -233,7 +248,8 @@ Vite exposes only variables prefixed with `VITE_`. They are inlined at build tim
 - TypeScript
 - Unit or integration tests
 - CI/CD configuration
-- Supabase migration files in repo (schema documented in `docs/schema.sql`)
+- ORM / query builder (the PHP API uses plain PDO + prepared statements)
 - Email invitations (members self-sign-up, then an owner grants access)
+- Email verification on signup (only password-reset emails are implemented)
 - Error boundary components
 - Service workers / PWA

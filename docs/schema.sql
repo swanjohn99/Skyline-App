@@ -1,3 +1,7 @@
+-- DEPRECATED / LEGACY (PostgreSQL + Supabase).
+-- The app now runs on MariaDB with a PHP API. Use api/schema.sql instead.
+-- This file is kept only as a reference for the original Postgres + RLS design.
+--
 -- Skyline-App database schema (greenfield, multi-tenant)
 -- Run in Supabase SQL Editor to build the database from scratch.
 -- WARNING: this script DROPS all existing app tables and their data.

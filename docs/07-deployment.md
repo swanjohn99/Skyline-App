@@ -1,131 +1,54 @@
 # Deployment
 
-Guide to building and hosting Skyline-App in production.
+Guide to building and hosting Skyline-App in production. The app has two parts:
+
+1. **Frontend** — a static React SPA served under `/app/`
+2. **Backend** — a PHP API served under `/api/`, backed by MariaDB
+
+Both are served from the same origin (`https://skylineconstructions.in`) so the session cookie is shared.
 
 ---
 
-## Build output
+## 1. Database
 
-Skyline-App is a **static single-page application**. Production deployment is:
+On the production MariaDB server:
 
-1. Run `npm run build`
-2. Upload the `dist/` folder to any static file host
-3. Configure SPA fallback (all routes → `index.html`)
+```bash
+mysql -u <admin> -p -e "CREATE DATABASE skyline CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -u <admin> -p skyline < api/schema.sql
+```
 
-No server-side runtime required.
+Create a dedicated DB user with privileges limited to the `skyline` database.
 
 ---
 
-## Build command
+## 2. Backend (PHP API)
+
+1. Upload the `api/` folder to the web root so it is reachable at `/api/`.
+2. Create `api/.env` on the server (never commit it) from `api/.env.example`:
+   - DB credentials
+   - `APP_URL=https://skylineconstructions.in/app`
+   - SMTP settings for password-reset emails
+3. Ensure PHP 8.1+ with `pdo_mysql` and `openssl` is enabled.
+4. The included `api/.htaccess` routes `/api/*` to `index.php` and blocks direct access to `.env`, `.sql`, and `config.php` (Apache + mod_rewrite). For Nginx, see the snippet below.
+
+---
+
+## 3. Frontend build
 
 ```bash
 npm run build
 ```
 
-Output directory: `dist/`
-
-Preview locally before deploying:
-
-```bash
-npm run preview
-```
+Output: `dist/`. Vite sets `base: '/app/'` for builds, so assets load from `/app/assets/...` and React Router uses `basename="/app"`. Upload the contents of `dist/` to the directory served at `/app/`.
 
 ---
 
-## Environment variables at build time
+## Web server configuration
 
-Vite **inlines** `VITE_*` environment variables during the build. They must be set **before** running `npm run build`.
+### Apache
 
-```env
-VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-VITE_SUPABASE_ANON_KEY=YOUR_ANON_KEY
-```
-
-**CI/CD pattern:**
-
-```yaml
-# Example (GitHub Actions)
-env:
-  VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-  VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-run: npm run build
-```
-
-Never commit production keys to the repository.
-
----
-
-## Intended production URL
-
-**Target:** `https://skylineconstructions.in/app/`
-
-The app is hosted under the `/app/` subpath, not at the domain root.
-
-`package.json` declares:
-
-```json
-"homepage": "https://skylineconstructions.in/app/"
-```
-
----
-
-## Subpath configuration (required fix)
-
-The current codebase has a **deployment gap**: `homepage` is set but Vite `base` and React Router `basename` are not configured. Without these, assets and client-side routes break under `/app/`.
-
-### Required changes for subpath deployment
-
-**1. `vite.config.js` — set asset base path:**
-
-```js
-export default defineConfig({
-  base: '/app/',
-  plugins: [
-    react(),
-    babel({ presets: [reactCompilerPreset()] })
-  ],
-})
-```
-
-**2. `src/App.jsx` — set router basename:**
-
-```jsx
-<BrowserRouter basename="/app">
-  {/* ... */}
-</BrowserRouter>
-```
-
-**3. Verify links and assets:**
-
-- All JS/CSS bundles load from `/app/assets/...`
-- Navigating to `/app/projects` works on direct URL access (requires server SPA fallback)
-
-### Local development note
-
-With `base: '/app/'`, local dev runs at `http://localhost:5173/app/` instead of root. Alternatively, use environment-specific config:
-
-```js
-base: process.env.NODE_ENV === 'production' ? '/app/' : '/',
-```
-
-And conditionally set `basename` only in production.
-
----
-
-## Static host SPA fallback
-
-The server must return `index.html` for all routes under `/app/` so React Router can handle client-side routing.
-
-### Nginx example
-
-```nginx
-location /app/ {
-  alias /var/www/skyline-app/dist/;
-  try_files $uri $uri/ /app/index.html;
-}
-```
-
-### Apache example
+`api/.htaccess` is included. For the SPA, add an `.htaccess` under `/app/` (or a vhost rule):
 
 ```apache
 <IfModule mod_rewrite.c>
@@ -138,74 +61,52 @@ location /app/ {
 </IfModule>
 ```
 
-### Netlify
+### Nginx
 
-Create `public/_redirects` or `netlify.toml`:
+```nginx
+# PHP API
+location /api/ {
+  try_files $uri /api/index.php$is_args$args;
+}
+location ~ ^/api/.*\.php$ {
+  include fastcgi_params;
+  fastcgi_pass unix:/run/php/php8.1-fpm.sock;
+  fastcgi_param SCRIPT_FILENAME $document_root/api/index.php;
+}
+# Block sensitive files
+location ~ /api/.*\.(env|sql)$ { deny all; }
+location = /api/config.php { deny all; }
 
+# SPA
+location /app/ {
+  alias /var/www/skyline-app/dist/;
+  try_files $uri $uri/ /app/index.html;
+}
 ```
-/app/*  /app/index.html  200
-```
-
-### GitHub Pages
-
-If deploying to `username.github.io/repo-name/`, set `base` to `/repo-name/` and enable SPA routing via `404.html` trick or GitHub Actions.
 
 ---
 
-## Hosting options
+## Password-reset emails
 
-| Platform | Notes |
-|----------|-------|
-| **Nginx / Apache** | Full control; place `dist/` on server |
-| **Netlify / Vercel** | Connect repo; set build command and env vars |
-| **GitHub Pages** | Free static hosting; configure `base` path |
-| **Cloudflare Pages** | Similar to Netlify |
-| **AWS S3 + CloudFront** | Enterprise static hosting |
-
-All options work because the app has no server-side requirements.
-
----
-
-## Supabase in production
-
-- Use the **same Supabase project** or a dedicated production project
-- Restrict anon key exposure — it is embedded in the client bundle (unavoidable for SPAs)
-- **Strongly recommended:** add Supabase Auth and tighten RLS before public deployment
-- Enable Supabase dashboard monitoring and backups
-
-Current anon RLS policies allow unrestricted read/write. See [03-database-schema.md](./03-database-schema.md).
+`POST /api/auth/forgot-password` emails a one-hour link to `APP_URL/reset?token=...`. Configure `SMTP_*` in `api/.env`; if `SMTP_HOST` is empty the API falls back to PHP `mail()`.
 
 ---
 
 ## Deployment checklist
 
-- [ ] Set production `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in CI/host
-- [ ] Configure `base: '/app/'` in Vite (or appropriate path)
-- [ ] Configure `basename="/app"` on `BrowserRouter`
-- [ ] Run `npm run build` successfully
-- [ ] Upload / deploy `dist/` contents
-- [ ] Configure SPA fallback on web server
-- [ ] Verify `/app/` loads dashboard
-- [ ] Verify direct URL access to `/app/projects` works (refresh test)
-- [ ] Verify Supabase CRUD operations from production URL
-- [ ] Confirm `.env` is not committed to git
-
----
-
-## Current state vs target
-
-| Item | Current | Target for production |
-|------|---------|----------------------|
-| `package.json homepage` | `/app/` | OK |
-| Vite `base` | `/` (default) | `/app/` |
-| Router `basename` | none | `/app` |
-| Auth | none | recommended |
-| RLS | permissive anon | auth-scoped (recommended) |
+- [ ] Create production DB and load `api/schema.sql`
+- [ ] Upload `api/` and create `api/.env` (DB + `APP_URL` + SMTP)
+- [ ] Confirm `/api/` returns `{"status":"ok"}` and `.env`/`.sql` are not publicly accessible
+- [ ] `npm run build` and upload `dist/` to `/app/`
+- [ ] Configure SPA fallback so `/app/...` deep links work on refresh
+- [ ] Verify sign up / sign in, then CRUD on projects/expenses/payments
+- [ ] Verify forgot-password email arrives and reset works
+- [ ] Seed the super admin (see bottom of `api/schema.sql`)
+- [ ] Confirm `.env` and `api/.env` are git-ignored
 
 ---
 
 ## Related docs
 
 - Local development: [06-local-setup.md](./06-local-setup.md)
-- Database setup: [03-database-schema.md](./03-database-schema.md)
-- Full rebuild: [08-replication-checklist.md](./08-replication-checklist.md)
+- Architecture: [02-architecture.md](./02-architecture.md)

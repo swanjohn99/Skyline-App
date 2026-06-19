@@ -2,19 +2,32 @@
 
 Construction project management web app: track projects, expenses, payments, and financial dashboards.
 
-**Stack:** React 19 · Vite 8 · Supabase · Recharts
+**Stack:** React 19 · Vite 8 · PHP (PDO) API · MariaDB · Recharts
+
+> Note: docs `03-database-schema` and `docs/schema.sql` describe the original Supabase/Postgres design and are kept for reference. The live schema is [api/schema.sql](./api/schema.sql); tenant isolation is enforced in the PHP API, not via DB-level RLS.
+
+Architecture: a React SPA (served under `/app/`) talks over `fetch` to a PHP API (`/api/`) that uses PDO against MariaDB. Auth is PHP session cookies; multi-tenant isolation is enforced in the API layer. Password resets are emailed via SMTP.
 
 ---
 
 ## Quick start
 
 ```bash
+# 1. Database
+mysql -u root -p < api/schema.sql
+
+# 2. Backend config
+cp api/.env.example api/.env   # then edit DB + SMTP values
+
+# 3. Serve the PHP API (PHP 8+). For local dev use the bundled router:
+php -S localhost:8000 api/router.php
+
+# 4. Frontend
 npm install
-# Configure .env (see docs/06-local-setup.md)
 npm run dev
 ```
 
-Open `http://localhost:5173`
+Open `http://localhost:5173`. The Vite dev server proxies `/api` to `VITE_DEV_API_TARGET` (default `http://localhost:8000`).
 
 ---
 
@@ -28,8 +41,9 @@ Full project documentation for rebuilding from scratch:
 |-----|----------|
 | [01-product-overview](./docs/01-product-overview.md) | Product vision, users, scope |
 | [02-architecture](./docs/02-architecture.md) | System design, routing, file map |
-| [03-database-schema](./docs/03-database-schema.md) | Tables, RLS, relationships |
-| [schema.sql](./docs/schema.sql) | Executable SQL migration |
+| [03-database-schema](./docs/03-database-schema.md) | Tables, relationships (legacy RLS notes) |
+| [api/schema.sql](./api/schema.sql) | Executable MariaDB schema (canonical) |
+| [docs/schema.sql](./docs/schema.sql) | Legacy Postgres/Supabase schema (reference) |
 | [04-features-and-business-rules](./docs/04-features-and-business-rules.md) | Page specs, calculations |
 | [05-ui-design-system](./docs/05-ui-design-system.md) | Colors, layout, components |
 | [06-local-setup](./docs/06-local-setup.md) | Developer environment |
@@ -51,25 +65,15 @@ Full project documentation for rebuilding from scratch:
 
 ## Environment
 
-Create `.env` in the project root:
+Backend config lives in `api/.env` (copy from `api/.env.example`): MariaDB credentials, `APP_URL`, and SMTP settings for password-reset emails.
 
-```env
-VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-VITE_SUPABASE_ANON_KEY=YOUR_ANON_KEY
-```
+Frontend `.env` (root, optional): `VITE_API_BASE` (default `/api`) and `VITE_DEV_API_TARGET` (dev proxy target).
 
 See [docs/06-local-setup.md](./docs/06-local-setup.md) for full setup instructions.
 
-## Google OAuth setup
+## Auth & multi-tenancy
 
-The login page supports Google OAuth through Supabase Auth.
-
-1. In Google Cloud, create an OAuth client with application type **Web application**.
-2. Add your app origins, including `http://localhost:5173` for local development.
-3. Copy the Supabase callback URL from **Authentication → Providers → Google** and add it to Google's authorized redirect URIs.
-4. In Supabase, enable the Google provider and enter the Google Client ID and Client Secret.
-5. In **Authentication → URL Configuration**, add these redirect URLs:
-   - `http://localhost:5173/**`
-   - Your production app URL, for example `https://skylineconstructions.in/app/**`
-
-Google OAuth creates a Supabase user on first sign-in. Configure the Google OAuth audience or application authorization rules if access should be limited to approved users.
+- Auth: email + password, PHP session cookies (`password_hash`/`password_verify`).
+- Password reset: `Forgot password?` emails a one-hour reset link to `/app/reset?token=...`.
+- Multi-tenancy: every API query is scoped by the logged-in user's `company_id`; super admins see all. Enforced in PHP (no DB-level RLS).
+- Seed a super admin via the snippet at the bottom of [api/schema.sql](./api/schema.sql).

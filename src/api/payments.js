@@ -1,15 +1,9 @@
-import { supabase } from '../supabaseClient';
+import { api } from '../apiClient';
 
 export async function listPayments() {
-  const { data, error } = await supabase
-    .from('payments')
-    .select('id, amount, payment_date, projects(project_title, client_name)')
-    .order('payment_date', { ascending: false });
-  if (error) throw error;
-  return data ?? [];
+  return (await api.get('/payments')) ?? [];
 }
 
 export async function createPayment(payment) {
-  const { error } = await supabase.from('payments').insert(payment);
-  if (error) throw error;
+  await api.post('/payments', payment);
 }

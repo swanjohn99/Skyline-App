@@ -1,0 +1,18 @@
+# Route every /api/* request to the front controller.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /api/
+
+  # Allow real files (e.g. schema.sql is blocked below) to be skipped only for index.php.
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^ index.php [L]
+</IfModule>
+
+# Never serve sensitive files directly.
+<FilesMatch "\.(env|sql)$">
+  Require all denied
+</FilesMatch>
+
+<Files "config.php">
+  Require all denied
+</Files>

@@ -1,5 +1,6 @@
-# Logs
+# Env / secrets
 .env
+api/.env
 
 logs
 *.log

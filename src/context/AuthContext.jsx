@@ -1,5 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
-import { getSession, onAuthStateChange, signOut as apiSignOut } from '../api/auth';
+import {
+  getSession,
+  signOut as apiSignOut,
+  signInWithPassword,
+  signUpWithPassword,
+} from '../api/auth';
 import { getMyProfile } from '../api/profiles';
 import { ROLES } from '../constants';
 import { AuthContext } from './auth';
@@ -18,34 +23,45 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  // Re-reads the session cookie + profile. Used on boot and after auth changes.
+  const refreshSession = useCallback(async () => {
+    const nextSession = await getSession();
+    setSession(nextSession);
+    if (nextSession) {
+      await loadProfile();
+    } else {
+      setProfile(null);
+    }
+    return nextSession;
+  }, [loadProfile]);
+
   useEffect(() => {
     let active = true;
-
-    async function bootstrap() {
-      const initialSession = await getSession();
-      if (!active) return;
-      setSession(initialSession);
-      if (initialSession) await loadProfile();
-      if (active) setLoading(false);
-    }
-    bootstrap();
-
-    const { data: listener } = onAuthStateChange(async (nextSession) => {
-      if (!active) return;
-      setSession(nextSession);
-      if (nextSession) {
-        await loadProfile();
-      } else {
-        setProfile(null);
+    (async () => {
+      try {
+        await refreshSession();
+      } finally {
+        if (active) setLoading(false);
       }
-      setLoading(false);
-    });
+    })();
+    return () => { active = false; };
+  }, [refreshSession]);
 
-    return () => {
-      active = false;
-      listener.subscription.unsubscribe();
-    };
-  }, [loadProfile]);
+  const signIn = useCallback(async (email, password) => {
+    await signInWithPassword(email, password);
+    await refreshSession();
+  }, [refreshSession]);
+
+  const signUp = useCallback(async (email, password) => {
+    await signUpWithPassword(email, password);
+    await refreshSession();
+  }, [refreshSession]);
+
+  const signOut = useCallback(async () => {
+    await apiSignOut();
+    setSession(null);
+    setProfile(null);
+  }, []);
 
   const role = profile?.role ?? null;
 
@@ -61,7 +77,9 @@ export function AuthProvider({ children }) {
     canManageTeam: role === ROLES.OWNER || role === ROLES.SUPER_ADMIN,
     needsOnboarding: Boolean(session) && !loading && !profile,
     refreshProfile: loadProfile,
-    signOut: apiSignOut,
+    signIn,
+    signUp,
+    signOut,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

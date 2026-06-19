@@ -1,50 +1,23 @@
-import { supabase } from '../supabaseClient';
+import { api } from '../apiClient';
 
 export async function getMyProfile() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*, companies(name)')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  if (error) throw error;
-  return data;
+  return api.get('/profile');
 }
 
-// Creates a company and makes the current user its owner (via RPC).
+// Creates a company and makes the current user its owner.
 export async function createCompany(name, fullName) {
-  const { data, error } = await supabase.rpc('create_company_and_join', {
-    p_name: name,
-    p_full_name: fullName || null,
-  });
-  if (error) throw error;
-  return data;
+  const data = await api.post('/companies', { name, full_name: fullName || null });
+  return data?.id;
 }
 
 export async function listMembers() {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .order('created_at', { ascending: true });
-  if (error) throw error;
-  return data ?? [];
+  return (await api.get('/members')) ?? [];
 }
 
 export async function setMemberActive(id, isActive) {
-  const { error } = await supabase
-    .from('profiles')
-    .update({ is_active: isActive })
-    .eq('id', id);
-  if (error) throw error;
+  await api.patch(`/members/${id}`, { is_active: isActive });
 }
 
 export async function setMemberRole(id, role) {
-  const { error } = await supabase
-    .from('profiles')
-    .update({ role })
-    .eq('id', id);
-  if (error) throw error;
+  await api.patch(`/members/${id}`, { role });
 }

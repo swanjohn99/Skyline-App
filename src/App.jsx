@@ -9,8 +9,12 @@ import ClientsPage from './pages/ClientsPage';
 import TeamPage from './pages/TeamPage';
 import LoginPage from './pages/LoginPage';
 import OnboardingPage from './pages/OnboardingPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import { useAuth } from './context/auth';
 import './App.css';
+
+// Derived from Vite's base ('/' in dev, '/app/' in prod) without trailing slash.
+const ROUTER_BASENAME = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -22,6 +26,11 @@ const NAV_ITEMS = [
 
 function App() {
   const { session, loading, needsOnboarding, canManageTeam, profile, user, companyName, signOut } = useAuth();
+
+  // Password reset is reachable while logged out, before the auth gate.
+  if (window.location.pathname.replace(/\/$/, '').endsWith('/reset')) {
+    return <ResetPasswordPage />;
+  }
 
   if (loading) {
     return (
@@ -45,7 +54,7 @@ function App() {
     : NAV_ITEMS;
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={ROUTER_BASENAME}>
       <div className="app-shell">
         <aside className="sidebar">
           <div className="sidebar-brand">
