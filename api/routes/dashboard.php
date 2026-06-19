@@ -13,7 +13,7 @@ function route_dashboard(string $method, array $segments): void
     if ($method !== 'GET') {
         json_error('Method not allowed', 405);
     }
-    $ctx = require_active_member();
+    $ctx = data_context(false);
     $scope = company_scope($ctx);
     $pdo = db();
 

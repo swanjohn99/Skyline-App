@@ -74,6 +74,26 @@ See [docs/06-local-setup.md](./docs/06-local-setup.md) for full setup instructio
 ## Auth & multi-tenancy
 
 - Auth: email + password, PHP session cookies (`password_hash`/`password_verify`).
-- Password reset: `Forgot password?` emails a one-hour reset link to `/app/reset?token=...`.
-- Multi-tenancy: every API query is scoped by the logged-in user's `company_id`; super admins see all. Enforced in PHP (no DB-level RLS).
-- Seed a super admin via the snippet at the bottom of [api/schema.sql](./api/schema.sql).
+- Password reset: `Forgot password?` emails a one-hour reset link to `/reset?token=...`.
+- **Optional company**: on first login, users can join a company, create one, or skip. Skipped users use the app with empty data until they join via `/setup`.
+- **Approval**: joining an existing company sets `is_active = 0` until an owner or super admin grants access on the Team page.
+- Multi-tenancy: every API query is scoped by the logged-in user's `company_id`; super admins see all (or one company via the sidebar switcher).
+
+### Create a super admin
+
+1. Sign up in the app (email + password).
+2. In phpMyAdmin, run (replace the email):
+
+```sql
+UPDATE profiles SET role = 'super_admin', is_active = 1, company_id = NULL
+WHERE id = (SELECT id FROM users WHERE email = 'you@example.com');
+```
+
+If no profile exists yet:
+
+```sql
+INSERT INTO profiles (id, company_id, role, is_active, email)
+SELECT id, NULL, 'super_admin', 1, email FROM users WHERE email = 'you@example.com';
+```
+
+3. Sign in again. You will see **Admin** in the sidebar to delete companies/users and a **View company data** dropdown to inspect each tenant.

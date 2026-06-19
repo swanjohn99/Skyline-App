@@ -15,7 +15,8 @@ const PROJECT_FIELDS = [
 
 function route_projects(string $method, array $segments): void
 {
-    $ctx = require_active_member();
+    $write = in_array($method, ['POST', 'PATCH'], true);
+    $ctx = data_context($write);
     $id = $segments[0] ?? null;
 
     if ($method === 'GET' && $id === null) {
@@ -67,17 +68,15 @@ function projects_get(array $ctx, string $id): void
 
 function projects_create(array $ctx): void
 {
-    if (!$ctx['company_id']) {
-        json_error('You must belong to a company to create records', 422);
-    }
     $body = json_body();
     if (empty($body['project_title'])) {
         json_error('Project title is required', 422);
     }
 
+    $companyId = insert_company_id($ctx);
     $id = uuid4();
     $cols = ['id', 'company_id'];
-    $vals = [$id, $ctx['company_id']];
+    $vals = [$id, $companyId];
     foreach (PROJECT_FIELDS as $f) {
         if (array_key_exists($f, $body)) {
             $cols[] = $f;

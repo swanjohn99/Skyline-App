@@ -769,6 +769,107 @@
   font-size: 0.875rem;
 }
 
+.company-results {
+  margin-top: 8px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 10px;
+  overflow: hidden;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.company-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
+  text-align: left;
+  font-size: 0.9rem;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.company-result:last-child {
+  border-bottom: 0;
+}
+
+.company-result:hover {
+  background: var(--color-surface-muted, #f1f5f9);
+}
+
+.company-results-empty {
+  padding: 10px 12px;
+  font-size: 0.85rem;
+  color: var(--color-text-muted, #64748b);
+}
+
+.org-setup-banner {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-text);
+  font-size: 0.875rem;
+}
+
+.org-setup-banner a {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.form-optional {
+  font-weight: 400;
+  color: var(--color-text-muted, #64748b);
+  font-size: 0.8rem;
+}
+
+.sidebar-company-select {
+  padding: 0 16px 12px;
+}
+
+.sidebar-company-select label {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted, #64748b);
+  margin-bottom: 6px;
+}
+
+.sidebar-company-select select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background: var(--color-surface, #fff);
+  font-size: 0.85rem;
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.admin-tab {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.admin-tab--active {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
 .login-toggle {
   margin-top: 18px;
   text-align: center;

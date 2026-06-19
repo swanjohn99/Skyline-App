@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Pencil } from 'lucide-react';
 import { getProject } from '../api/projects';
 import { listExpensesByProject } from '../api/expenses';
+import UpdateProjectForm from '../components/UpdateProjectForm';
 import { formatCurrency, formatDate } from '../utils/format';
 import { statusBadgeClass } from '../constants';
 
@@ -10,11 +11,17 @@ export default function ProjectDetailsPage() {
   const { id } = useParams();
   const [project, setProject] = useState(null);
   const [expenses, setExpenses] = useState([]);
+  const [editing, setEditing] = useState(false);
+  const [refresh, setRefresh] = useState(0);
 
   useEffect(() => {
     getProject(id).then(setProject).catch(() => setProject(null));
     listExpensesByProject(id).then(setExpenses).catch(() => setExpenses([]));
-  }, [id]);
+  }, [id, refresh]);
+
+  function handleUpdated() {
+    setRefresh((n) => n + 1);
+  }
 
   if (!project) {
     return (
@@ -37,14 +44,20 @@ export default function ProjectDetailsPage() {
         Back to Projects
       </Link>
 
-      <header className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <h1 className="page-title">{project.project_title}</h1>
-          <span className={statusBadgeClass(project.status)}>{project.status}</span>
+      <header className="page-header page-header--actions">
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <h1 className="page-title">{project.project_title}</h1>
+            <span className={statusBadgeClass(project.status)}>{project.status}</span>
+          </div>
+          {project.client_name && (
+            <p className="page-subtitle">{project.client_name}{project.location ? ` · ${project.location}` : ''}</p>
+          )}
         </div>
-        {project.client_name && (
-          <p className="page-subtitle">{project.client_name}{project.location ? ` · ${project.location}` : ''}</p>
-        )}
+        <button type="button" className="btn btn-secondary" onClick={() => setEditing(true)}>
+          <Pencil size={16} />
+          Edit
+        </button>
       </header>
 
       <div className="detail-grid">
@@ -120,6 +133,14 @@ export default function ProjectDetailsPage() {
           </tbody>
         </table>
       </div>
+
+      {editing && (
+        <UpdateProjectForm
+          project={project}
+          onUpdate={handleUpdated}
+          onClose={() => setEditing(false)}
+        />
+      )}
     </div>
   );
 }

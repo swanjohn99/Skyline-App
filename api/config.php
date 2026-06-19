@@ -58,7 +58,7 @@ return [
     ],
     'app' => [
         // Public base URL of the SPA, used to build password-reset links.
-        'app_url' => rtrim(env('APP_URL', 'https://skylineconstructions.in/app') ?? '', '/'),
+        'app_url' => rtrim(env('APP_URL', 'https://admin.skylineconstructions.in') ?? '', '/'),
         'env'     => env('APP_ENV', 'production'),
     ],
     'mail' => [

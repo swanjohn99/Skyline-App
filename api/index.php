@@ -65,6 +65,10 @@ switch ($resource) {
         require __DIR__ . '/routes/dashboard.php';
         route_dashboard($method, $segments);
         break;
+    case 'admin':
+        require __DIR__ . '/routes/admin.php';
+        route_admin($method, $segments);
+        break;
     default:
         json_error('Not found', 404);
 }

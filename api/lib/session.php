@@ -110,18 +110,70 @@ function require_active_member(): array
     return $ctx;
 }
 
+// Super admin only; 403 for everyone else.
+function require_super_admin(): array
+{
+    $ctx = auth_context();
+    if (!$ctx['is_super_admin']) {
+        json_error('Not allowed', 403);
+    }
+    return $ctx;
+}
+
+// Context for business-data endpoints.
+// - Super admin: full access; optional ?company_id= scopes reads/writes.
+// - Active company member: scoped to their company.
+// - Pending member (inactive): 403.
+function data_context(bool $write = false): array
+{
+    $ctx = auth_context();
+    if ($ctx['is_super_admin']) {
+        return $ctx;
+    }
+    if (!$ctx['profile']) {
+        json_error('Complete onboarding first', 403);
+    }
+    if (!$ctx['company_id']) {
+        json_error('Complete onboarding first', 403);
+    }
+    if (!$ctx['is_active']) {
+        json_error('No active company membership', 403);
+    }
+    return $ctx;
+}
+
 // SQL fragment + bound params that scope a business table to the caller's
-// company. Super admins get an always-true predicate (full visibility).
+// company. Super admins get full visibility unless ?company_id= is set.
 function company_scope(array $ctx, string $alias = ''): array
 {
     $prefix = $alias === '' ? '' : ($alias . '.');
     if ($ctx['is_super_admin']) {
+        $viewAs = trim((string) ($_GET['company_id'] ?? ''));
+        if ($viewAs !== '') {
+            return ['sql' => $prefix . 'company_id = ?', 'params' => [$viewAs]];
+        }
         return ['sql' => '1=1', 'params' => []];
     }
     return [
         'sql'    => $prefix . 'company_id = ?',
         'params' => [$ctx['company_id']],
     ];
+}
+
+// Company id to stamp on INSERT for the current caller.
+function insert_company_id(array $ctx, ?string $fromRow = null): string
+{
+    if ($fromRow) {
+        return $fromRow;
+    }
+    if ($ctx['is_super_admin']) {
+        $viewAs = trim((string) (body_field('company_id') ?? $_GET['company_id'] ?? ''));
+        if ($viewAs !== '') {
+            return $viewAs;
+        }
+        json_error('Super admin must specify company_id', 422);
+    }
+    return $ctx['company_id'];
 }
 
 // Returns the company_id of a row (assumes the row exists / was authorized).

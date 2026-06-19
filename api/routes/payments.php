@@ -8,7 +8,8 @@ require_once __DIR__ . '/../lib/session.php';
 
 function route_payments(string $method, array $segments): void
 {
-    $ctx = require_active_member();
+    $write = $method === 'POST';
+    $ctx = data_context($write);
 
     if ($method === 'GET' && empty($segments)) {
         payments_list($ctx);

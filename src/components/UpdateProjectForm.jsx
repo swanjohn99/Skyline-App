@@ -1,22 +1,54 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { updateProject } from '../api/projects';
+import { listClients } from '../api/clients';
 import { PROJECT_STATUSES, COMPLETED_STATUSES } from '../constants';
 import { toDateInputValue } from '../utils/format';
-import AddPaymentForm from './AddPaymentForm';
 import './UpdateProjectForm.css';
 
-function UpdateProjectForm({ project, onUpdate, onClose }) {
-  const [form, setForm] = useState({
-    status: project.status || '',
+function projectToForm(project) {
+  return {
+    project_title: project.project_title || '',
+    client_id: project.client_id || '',
+    client_name: project.client_name || '',
+    location: project.location || '',
+    work_description: project.work_description || '',
+    total_quoted_amount: project.total_quoted_amount || 0,
+    amount_received: project.amount_received || 0,
+    status: project.status || 'site visit requested',
     completion_percent: project.completion_percent || 0,
     start_date: project.start_date || '',
     end_date: project.end_date || '',
-    total_quoted_amount: project.total_quoted_amount || 0
-  });
+  };
+}
 
+function UpdateProjectForm({ project, onUpdate, onClose }) {
+  const [form, setForm] = useState(() => projectToForm(project));
+  const [clients, setClients] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const isCompleted = project.status?.toLowerCase().trim() === 'completed';
+
+  useEffect(() => {
+    listClients().then(setClients).catch(() => setClients([]));
+  }, []);
+
+  function handleChange(event) {
+    const { name, value, type } = event.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: type === 'number' ? Number(value) : value,
+    }));
+  }
+
+  function handleClientSelect(event) {
+    const clientId = event.target.value;
+    const client = clients.find((c) => c.id === clientId);
+    setForm((prev) => ({
+      ...prev,
+      client_id: clientId,
+      client_name: client ? client.name : prev.client_name,
+      location: client?.location || prev.location,
+    }));
+  }
 
   async function handleUpdate(e) {
     e.preventDefault();
@@ -24,15 +56,23 @@ function UpdateProjectForm({ project, onUpdate, onClose }) {
     setError(null);
 
     const canHaveEndDate = COMPLETED_STATUSES.includes(form.status);
-    const finalEndDate = canHaveEndDate ? form.end_date : null;
+    const completionPercent = COMPLETED_STATUSES.includes(form.status)
+      ? 100
+      : Number(form.completion_percent);
 
     try {
       await updateProject(project.id, {
-        status: form.status,
-        completion_percent: Number(form.completion_percent),
-        start_date: form.start_date || null,
-        end_date: finalEndDate,
+        project_title: form.project_title,
+        client_id: form.client_id || null,
+        client_name: form.client_name,
+        location: form.location,
+        work_description: form.work_description,
         total_quoted_amount: Number(form.total_quoted_amount),
+        amount_received: Number(form.amount_received),
+        status: form.status,
+        completion_percent: completionPercent,
+        start_date: form.start_date || null,
+        end_date: canHaveEndDate ? (form.end_date || null) : null,
       });
       onUpdate();
       onClose();
@@ -42,37 +82,68 @@ function UpdateProjectForm({ project, onUpdate, onClose }) {
     }
   }
 
-  const formatDateForInput = toDateInputValue;
-
   return (
     <div className="skyline-modal-overlay">
       <div className="skyline-modal-content">
         <div className="modal-header">
-          <h2>Update Project</h2>
-          <span className="project-title-display">{project.project_title}</span>
-          <button className="close-x" onClick={onClose}>&times;</button>
+          <h2>Edit Project</h2>
+          <button type="button" className="close-x" onClick={onClose}>&times;</button>
         </div>
-        
+
         <form onSubmit={handleUpdate} className="skyline-update-form">
           <div className="form-group full-width">
-            <label>Current Status</label>
-            <select 
-              value={form.status} 
-              onChange={(e) => setForm({...form, status: e.target.value})}
+            <label>Project Title</label>
+            <input
+              name="project_title"
+              value={form.project_title}
+              onChange={handleChange}
               required
-            >
-              {PROJECT_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+            />
+          </div>
+
+          <div className="form-group full-width">
+            <label>Link Client (CRM)</label>
+            <select value={form.client_id} onChange={handleClientSelect}>
+              <option value="">— None / new —</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group half-width">
+              <label>Client Name</label>
+              <input name="client_name" value={form.client_name} onChange={handleChange} required />
+            </div>
+            <div className="form-group half-width">
+              <label>Location</label>
+              <input name="location" value={form.location} onChange={handleChange} />
+            </div>
+          </div>
+
+          <div className="form-group full-width">
+            <label>Work Description</label>
+            <textarea name="work_description" value={form.work_description} onChange={handleChange} rows={3} />
+          </div>
+
+          <div className="form-group full-width">
+            <label>Status</label>
+            <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} required>
+              {PROJECT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
 
           {['work started', ...COMPLETED_STATUSES].includes(form.status) && (
             <div className="form-group half-width">
               <label>Completion (%)</label>
-              <input 
-                type="number" 
-                min="0" max="100" 
-                value={form.completion_percent} 
-                onChange={(e) => setForm({...form, completion_percent: e.target.value})} 
+              <input
+                type="number"
+                min="0"
+                max="100"
+                name="completion_percent"
+                value={form.completion_percent}
+                onChange={handleChange}
               />
             </div>
           )}
@@ -80,50 +151,54 @@ function UpdateProjectForm({ project, onUpdate, onClose }) {
           <div className="form-row">
             <div className="form-group half-width">
               <label>Start Date</label>
-              <input 
-                type="date" 
-                value={formatDateForInput(form.start_date)} 
-                onChange={(e) => setForm({...form, start_date: e.target.value})} 
+              <input
+                type="date"
+                name="start_date"
+                value={toDateInputValue(form.start_date)}
+                onChange={handleChange}
               />
             </div>
-            
             {COMPLETED_STATUSES.includes(form.status) && (
               <div className="form-group half-width">
                 <label>End Date</label>
-                <input 
-                  type="date" 
-                  value={formatDateForInput(form.end_date)} 
-                  onChange={(e) => setForm({...form, end_date: e.target.value})} 
+                <input
+                  type="date"
+                  name="end_date"
+                  value={toDateInputValue(form.end_date)}
+                  onChange={handleChange}
                 />
               </div>
             )}
           </div>
 
-          <div className="form-group half-width">
-            <label>Total Quoted Amount (INR)</label>
-            <input 
-              type="number" 
-              step="0.01" 
-              value={form.total_quoted_amount} 
-              onChange={(e) => setForm({...form, total_quoted_amount: e.target.value})} 
-            />
-          </div>
-
-          {!isCompleted && (
-            <div className="form-section-divider">
-              <p className="form-section-label">Record Payment</p>
-              <AddPaymentForm
-                defaultProjectId={project.id}
-                onPaymentAdded={onUpdate}
+          <div className="form-row">
+            <div className="form-group half-width">
+              <label>Total Quoted Amount (INR)</label>
+              <input
+                type="number"
+                step="0.01"
+                name="total_quoted_amount"
+                value={form.total_quoted_amount}
+                onChange={handleChange}
               />
             </div>
-          )}
-          
+            <div className="form-group half-width">
+              <label>Amount Received (INR)</label>
+              <input
+                type="number"
+                step="0.01"
+                name="amount_received"
+                value={form.amount_received}
+                onChange={handleChange}
+              />
+            </div>
+          </div>
+
           {error && <p className="form-message form-message--error">{error}</p>}
 
           <div className="modal-actions">
             <button type="submit" className="save-btn" disabled={submitting}>
-              {submitting ? 'Saving...' : 'Save Changes'}
+              {submitting ? 'Saving…' : 'Save Changes'}
             </button>
             <button type="button" className="cancel-btn" onClick={onClose}>
               Cancel

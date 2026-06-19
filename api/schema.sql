@@ -157,7 +157,15 @@ CREATE TABLE payments (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ── Seed the super admin (run AFTER you have signed up once) ──────────────────
--- Replace the email, then run:
---   UPDATE profiles SET role = 'super_admin', is_active = 1
+-- Replace the email, then run ONE of these in phpMyAdmin:
+--
+-- If the user already has a profile (e.g. after "Skip for now"):
+--   UPDATE profiles SET role = 'super_admin', is_active = 1, company_id = NULL
 --   WHERE id = (SELECT id FROM users WHERE email = 'you@example.com');
--- A super admin may have a NULL company_id and still sees every company's data.
+--
+-- If the user has no profile row yet:
+--   INSERT INTO profiles (id, company_id, role, is_active, email)
+--   SELECT id, NULL, 'super_admin', 1, email FROM users WHERE email = 'you@example.com';
+--
+-- Super admins may have a NULL company_id. Use the Admin page and sidebar
+-- company switcher to view each company's data, or leave unset to see all.

@@ -16,7 +16,8 @@ function client_out(array $row): array
 
 function route_clients(string $method, array $segments): void
 {
-    $ctx = require_active_member();
+    $write = in_array($method, ['POST', 'PATCH', 'DELETE'], true);
+    $ctx = data_context($write);
     $id = $segments[0] ?? null;
 
     if ($method === 'GET' && $id === null) {
@@ -44,17 +45,15 @@ function clients_list(array $ctx): void
 
 function clients_create(array $ctx): void
 {
-    if ($ctx['is_super_admin'] && !$ctx['company_id']) {
-        json_error('Super admin must belong to a company to create records', 422);
-    }
     $body = json_body();
     if (empty($body['name'])) {
         json_error('Name is required', 422);
     }
 
+    $companyId = insert_company_id($ctx);
     $id = uuid4();
     $cols = ['id', 'company_id'];
-    $vals = [$id, $ctx['company_id']];
+    $vals = [$id, $companyId];
     foreach (CLIENT_FIELDS as $f) {
         if (array_key_exists($f, $body)) {
             $cols[] = $f;

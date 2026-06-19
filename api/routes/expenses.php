@@ -8,7 +8,8 @@ require_once __DIR__ . '/../lib/session.php';
 
 function route_expenses(string $method, array $segments): void
 {
-    $ctx = require_active_member();
+    $write = $method === 'POST';
+    $ctx = data_context($write);
 
     if ($method === 'GET' && empty($segments)) {
         if (isset($_GET['project_id'])) {

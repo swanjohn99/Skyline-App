@@ -47,7 +47,7 @@ export default function LoginPage() {
   const subtitle = isForgot
     ? "Enter your email and we'll send you a reset link."
     : isSignUp
-      ? 'Sign up to create or join a company workspace.'
+      ? 'Create your account with email and password.'
       : 'Sign in to manage your projects, expenses, and payments.';
 
   return (

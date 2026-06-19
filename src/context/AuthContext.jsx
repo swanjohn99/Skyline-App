@@ -74,8 +74,11 @@ export function AuthProvider({ children }) {
     loading,
     isSuperAdmin: role === ROLES.SUPER_ADMIN,
     isOwner: role === ROLES.OWNER,
-    canManageTeam: role === ROLES.OWNER || role === ROLES.SUPER_ADMIN,
+    canManageTeam: (role === ROLES.OWNER || role === ROLES.SUPER_ADMIN) && Boolean(profile?.company_id),
+    hasCompany: Boolean(profile?.company_id),
     needsOnboarding: Boolean(session) && !loading && !profile,
+    // Has a profile but access not yet granted (joined a company, awaiting approval).
+    isPendingApproval: Boolean(profile) && profile?.company_id && profile?.is_active === false,
     refreshProfile: loadProfile,
     signIn,
     signUp,

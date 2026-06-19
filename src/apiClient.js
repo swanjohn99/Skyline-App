@@ -3,8 +3,35 @@
 // whose message is the API's { message } payload (matches existing catch usage).
 
 const API_BASE = import.meta.env.VITE_API_BASE || '/api';
+const VIEW_COMPANY_KEY = 'skyline_view_company_id';
+
+export function getViewCompanyId() {
+  try {
+    return localStorage.getItem(VIEW_COMPANY_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+export function setViewCompanyId(id) {
+  try {
+    if (id) localStorage.setItem(VIEW_COMPANY_KEY, id);
+    else localStorage.removeItem(VIEW_COMPANY_KEY);
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function appendViewCompany(path, method) {
+  if (method !== 'GET') return path;
+  const companyId = getViewCompanyId();
+  if (!companyId || path.includes('company_id=')) return path;
+  const sep = path.includes('?') ? '&' : '?';
+  return `${path}${sep}company_id=${encodeURIComponent(companyId)}`;
+}
 
 async function request(method, path, body) {
+  const finalPath = appendViewCompany(path, method);
   const options = {
     method,
     credentials: 'include',
@@ -16,7 +43,7 @@ async function request(method, path, body) {
     options.body = JSON.stringify(body);
   }
 
-  const res = await fetch(`${API_BASE}${path}`, options);
+  const res = await fetch(`${API_BASE}${finalPath}`, options);
 
   let data = null;
   const text = await res.text();

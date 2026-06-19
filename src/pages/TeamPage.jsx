@@ -7,7 +7,7 @@ import { formatDate } from '../utils/format';
 const ROLE_OPTIONS = [ROLES.MEMBER, ROLES.OWNER];
 
 export default function TeamPage() {
-  const { user, isSuperAdmin } = useAuth();
+  const { user, isSuperAdmin, companyName } = useAuth();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -43,7 +43,9 @@ export default function TeamPage() {
     <div className="page">
       <header className="page-header">
         <div>
-          <h1 className="page-title">Team</h1>
+          <h1 className="page-title">
+            Team{companyName ? ` — ${companyName}` : isSuperAdmin ? ' — All companies' : ''}
+          </h1>
           <p className="page-subtitle">Manage who can access your company's data. Revoke access anytime.</p>
         </div>
       </header>

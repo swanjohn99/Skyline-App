@@ -2,7 +2,7 @@
   "name": "skyline-app",
   "private": true,
   "version": "0.0.0",
-  "homepage": "https://skylineconstructions.in/app/",
+  "homepage": "https://admin.skylineconstructions.in/",
   "type": "module",
   "scripts": {
     "dev": "vite",
