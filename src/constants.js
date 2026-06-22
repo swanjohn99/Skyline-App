@@ -1,3 +1,47 @@
+export const EXPENSE_TYPES = [
+  { value: 'material', label: 'Material' },
+  { value: 'labour', label: 'Labour payment' },
+  { value: 'transportation', label: 'Transportation' },
+  { value: 'other', label: 'Others' },
+];
+
+export function expenseTypeLabel(value) {
+  return EXPENSE_TYPES.find((t) => t.value === value)?.label ?? 'Others';
+}
+
+export const PAYMENT_METHODS = [
+  { value: 'cash', label: 'Cash' },
+  { value: 'online_transfer', label: 'Online transfer' },
+  { value: 'cheque', label: 'Cheque' },
+];
+
+export function paymentMethodLabel(value) {
+  return PAYMENT_METHODS.find((t) => t.value === value)?.label ?? '—';
+}
+
+export const CLIENT_TYPES = [
+  { value: 'b2c', label: 'B2C' },
+  { value: 'b2b', label: 'B2B' },
+];
+
+export function clientTypeLabel(value) {
+  const normalized = value === 'private_client' ? 'b2c' : value === 'contractor' ? 'b2b' : value;
+  return CLIENT_TYPES.find((t) => t.value === normalized)?.label ?? 'B2C';
+}
+
+export function isB2BClient(client) {
+  const type = client?.client_type;
+  return type === 'b2b' || type === 'contractor';
+}
+
+export function clientDisplayName(client) {
+  if (!client) return '';
+  if (isB2BClient(client) && client.customer_account?.name) {
+    return `${client.name} (${client.customer_account.name})`;
+  }
+  return client.name;
+}
+
 export const ROLES = {
   SUPER_ADMIN: 'super_admin',
   OWNER: 'owner',

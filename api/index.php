@@ -45,6 +45,10 @@ switch ($resource) {
         require __DIR__ . '/routes/profile.php';
         route_members($method, $segments);
         break;
+    case 'customer-accounts':
+        require __DIR__ . '/routes/customer_accounts.php';
+        route_customer_accounts($method, $segments);
+        break;
     case 'clients':
         require __DIR__ . '/routes/clients.php';
         route_clients($method, $segments);

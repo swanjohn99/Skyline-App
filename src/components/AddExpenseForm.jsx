@@ -1,48 +1,71 @@
 import { useState, useEffect } from 'react';
-import { listOpenProjects } from '../api/projects';
-import { createExpense } from '../api/expenses';
-import { todayInputValue } from '../utils/format';
+import { listOpenProjects, listProjects } from '../api/projects';
+import { createExpense, updateExpense } from '../api/expenses';
+import { EXPENSE_TYPES } from '../constants';
+import { todayInputValue, toDateInputValue } from '../utils/format';
 
-function AddExpenseForm({ onExpenseAdded, onCancel }) {
+function toFormState(record) {
+  if (!record) {
+    return {
+      project_id: '',
+      expense_type: 'other',
+      amount: '',
+      description: '',
+      date: todayInputValue(),
+    };
+  }
+  return {
+    project_id: record.project_id || '',
+    expense_type: record.expense_type || 'other',
+    amount: record.amount ?? '',
+    description: record.description || '',
+    date: toDateInputValue(record.expense_date) || todayInputValue(),
+  };
+}
+
+function AddExpenseForm({ expense, onExpenseAdded, onCancel }) {
   const [projects, setProjects] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [form, setForm] = useState(() => toFormState(expense));
 
-  const [expense, setExpense] = useState({
-    project_id: '',
-    amount: '',
-    description: '',
-    date: todayInputValue(),
-  });
+  const isEdit = Boolean(expense);
 
   useEffect(() => {
-    listOpenProjects().then(setProjects).catch(() => setProjects([]));
-  }, []);
+    const loader = isEdit ? listProjects() : listOpenProjects();
+    loader.then(setProjects).catch(() => setProjects([]));
+  }, [isEdit]);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
 
+    const payload = {
+      project_id: form.project_id,
+      expense_type: form.expense_type,
+      amount: Number(form.amount),
+      description: form.description.trim() || null,
+      expense_date: form.date,
+    };
+
     try {
-      await createExpense({
-        project_id: expense.project_id,
-        amount: Number(expense.amount),
-        description: expense.description,
-        expense_date: expense.date,
-      });
-      setExpense({ project_id: '', amount: '', description: '', date: todayInputValue() });
+      if (isEdit) {
+        await updateExpense(expense.id, payload);
+      } else {
+        await createExpense(payload);
+        setForm(toFormState(null));
+      }
       onExpenseAdded?.();
     } catch (err) {
       setError(err.message);
-    } finally {
       setSubmitting(false);
     }
   }
 
   return (
     <form onSubmit={handleSubmit} className="form-card">
-      <h3 className="form-card-title">Log New Expense</h3>
+      <h3 className="form-card-title">{isEdit ? 'Edit Expense' : 'Log New Expense'}</h3>
       <p className="form-card-subtitle">Record a project-related expense.</p>
 
       <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
@@ -50,8 +73,8 @@ function AddExpenseForm({ onExpenseAdded, onCancel }) {
           <label>Project</label>
           <select
             required
-            value={expense.project_id}
-            onChange={(e) => setExpense({ ...expense, project_id: e.target.value })}
+            value={form.project_id}
+            onChange={(e) => setForm({ ...form, project_id: e.target.value })}
           >
             <option value="">Select a project…</option>
             {projects.map((p) => (
@@ -61,12 +84,25 @@ function AddExpenseForm({ onExpenseAdded, onCancel }) {
         </div>
 
         <div className="form-field">
+          <label>Type</label>
+          <select
+            required
+            value={form.expense_type}
+            onChange={(e) => setForm({ ...form, expense_type: e.target.value })}
+          >
+            {EXPENSE_TYPES.map(({ value, label }) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-field">
           <label>Amount (INR)</label>
           <input
             type="number"
             required
-            value={expense.amount}
-            onChange={(e) => setExpense({ ...expense, amount: e.target.value })}
+            value={form.amount}
+            onChange={(e) => setForm({ ...form, amount: e.target.value })}
           />
         </div>
 
@@ -74,8 +110,8 @@ function AddExpenseForm({ onExpenseAdded, onCancel }) {
           <label>Description</label>
           <input
             type="text"
-            value={expense.description}
-            onChange={(e) => setExpense({ ...expense, description: e.target.value })}
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
             placeholder="What was this expense for?"
           />
         </div>
@@ -85,15 +121,15 @@ function AddExpenseForm({ onExpenseAdded, onCancel }) {
           <input
             type="date"
             required
-            value={expense.date}
-            onChange={(e) => setExpense({ ...expense, date: e.target.value })}
+            value={form.date}
+            onChange={(e) => setForm({ ...form, date: e.target.value })}
           />
         </div>
       </div>
 
       <div className="form-actions">
         <button type="submit" disabled={submitting} className="btn btn-primary">
-          {submitting ? 'Adding…' : 'Add Expense'}
+          {submitting ? 'Saving…' : (isEdit ? 'Save Changes' : 'Add Expense')}
         </button>
         <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
         {error && <span className="form-message form-message--error">{error}</span>}

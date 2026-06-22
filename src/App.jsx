@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { LayoutDashboard, FolderKanban, Receipt, Wallet, Users, Contact, Building2, LogOut, Shield } from 'lucide-react';
+import {
+  LayoutDashboard, FolderKanban, Receipt, Wallet, Users, Contact, Building2, LogOut, Shield,
+  PanelLeftClose, PanelLeftOpen,
+} from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import ProjectPage from './pages/ProjectPage';
 import ExpensePage from './pages/ExpensePage';
@@ -30,17 +33,38 @@ const NAV_ITEMS = [
   { to: '/payments', label: 'Payments', icon: Wallet },
 ];
 
+const SIDEBAR_COLLAPSED_KEY = 'skyline-sidebar-collapsed';
+
 function AppShell() {
   const {
     canManageTeam, isSuperAdmin, profile, user, companyName, signOut,
   } = useAuth();
   const [adminCompanies, setAdminCompanies] = useState([]);
   const [viewCompanyId, setViewCompanyIdState] = useState(() => getViewCompanyId());
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
 
   useEffect(() => {
     if (!isSuperAdmin) return;
     listAdminCompanies().then(setAdminCompanies).catch(() => setAdminCompanies([]));
   }, [isSuperAdmin]);
+
+  function toggleSidebar() {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? '1' : '0');
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }
 
   function handleViewCompanyChange(event) {
     const value = event.target.value;
@@ -58,18 +82,29 @@ function AppShell() {
   const viewingCompany = adminCompanies.find((c) => c.id === viewCompanyId);
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${sidebarCollapsed ? ' app-shell--sidebar-collapsed' : ''}`}>
       <aside className="sidebar">
-        <div className="sidebar-brand">
-          <div className="sidebar-brand-icon">
-            <Building2 size={22} strokeWidth={2.25} />
+        <div className="sidebar-header">
+          <div className="sidebar-brand">
+            <div className="sidebar-brand-icon">
+              <Building2 size={22} strokeWidth={2.25} />
+            </div>
+            <div className="sidebar-brand-text">
+              <span className="sidebar-brand-name">
+                {isSuperAdmin && viewingCompany ? viewingCompany.name : (companyName || 'Skyline')}
+              </span>
+              <span className="sidebar-brand-tagline">Constructions</span>
+            </div>
           </div>
-          <div className="sidebar-brand-text">
-            <span className="sidebar-brand-name">
-              {isSuperAdmin && viewingCompany ? viewingCompany.name : (companyName || 'Skyline')}
-            </span>
-            <span className="sidebar-brand-tagline">Constructions</span>
-          </div>
+          <button
+            type="button"
+            className="sidebar-toggle"
+            onClick={toggleSidebar}
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+          </button>
         </div>
 
         {isSuperAdmin && (
@@ -90,10 +125,11 @@ function AppShell() {
               key={to}
               to={to}
               end={end}
+              title={label}
               className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
             >
               <Icon size={18} strokeWidth={2} />
-              {label}
+              <span className="nav-link-label">{label}</span>
             </NavLink>
           ))}
         </nav>
@@ -101,9 +137,9 @@ function AppShell() {
         <div className="sidebar-footer">
           <p className="sidebar-user" title={user?.email}>{user?.email}</p>
           <p className="sidebar-role">{profile?.role?.replace('_', ' ')}</p>
-          <button type="button" className="sign-out-button" onClick={signOut}>
+          <button type="button" className="sign-out-button" onClick={signOut} title="Sign out">
             <LogOut size={16} />
-            Sign out
+            <span className="sign-out-label">Sign out</span>
           </button>
         </div>
       </aside>

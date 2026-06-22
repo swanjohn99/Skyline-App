@@ -49,11 +49,11 @@ function env(string $key, ?string $default = null): ?string
 
 return [
     'db' => [
-        'host'    => env('DB_HOST', '127.0.0.1'),
+        'host'    => env('DB_HOST', 'localhost'),
         'port'    => env('DB_PORT', '3306'),
-        'name'    => env('DB_NAME', 'skyline'),
-        'user'    => env('DB_USER', 'root'),
-        'pass'    => env('DB_PASS', ''),
+        'name'    => env('DB_NAME', 'yjxgxlqh_adminskyline'),
+        'user'    => env('DB_USER', 'yjxgxlqh_backendadminskyline'),
+        'pass'    => env('DB_PASS', 'XPnvfSezAPs8qrFtUdGt'),
         'charset' => 'utf8mb4',
     ],
     'app' => [

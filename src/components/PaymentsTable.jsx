@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { listPayments } from '../api/payments';
+import { listPayments, deletePayment } from '../api/payments';
 import { formatCurrency, formatDate } from '../utils/format';
+import { paymentMethodLabel } from '../constants';
 import './ProjectTable.css';
 
-export default function PaymentsTable({ refreshKey }) {
+export default function PaymentsTable({ refreshKey, onEdit, onDeleted }) {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -15,6 +17,20 @@ export default function PaymentsTable({ refreshKey }) {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [refreshKey]);
+
+  async function handleDelete(payment) {
+    const label = payment.projects?.project_title || formatCurrency(payment.amount);
+    if (!window.confirm(`Delete payment for "${label}"? This cannot be undone.`)) return;
+    setDeletingId(payment.id);
+    try {
+      await deletePayment(payment.id);
+      onDeleted?.();
+    } catch (err) {
+      window.alert(err.message || 'Failed to delete payment.');
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   if (loading) {
     return (
@@ -33,23 +49,41 @@ export default function PaymentsTable({ refreshKey }) {
           <thead>
             <tr>
               <th>Date</th>
+              <th>Method</th>
               <th>Project</th>
               <th>Client Name</th>
+              <th>Comments</th>
               <th>Amount</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {payments.length === 0 ? (
               <tr>
-                <td colSpan={4} className="data-table-empty">No payments recorded yet.</td>
+                <td colSpan={7} className="data-table-empty">No payments recorded yet.</td>
               </tr>
             ) : (
               payments.map(p => (
                 <tr key={p.id}>
                   <td>{formatDate(p.payment_date)}</td>
+                  <td>{paymentMethodLabel(p.payment_method)}</td>
                   <td>{p.projects?.project_title || '—'}</td>
                   <td>{p.projects?.client_name || '—'}</td>
+                  <td>{p.comments || '—'}</td>
                   <td className="data-table-amount">{formatCurrency(p.amount)}</td>
+                  <td>
+                    <div className="table-actions-stack">
+                      <button type="button" className="btn-edit" onClick={() => onEdit(p)}>Edit</button>
+                      <button
+                        type="button"
+                        className="btn-edit btn-edit--danger"
+                        onClick={() => handleDelete(p)}
+                        disabled={deletingId === p.id}
+                      >
+                        {deletingId === p.id ? '…' : 'Delete'}
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))
             )}

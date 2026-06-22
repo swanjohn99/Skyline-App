@@ -171,7 +171,7 @@ function insert_company_id(array $ctx, ?string $fromRow = null): string
         if ($viewAs !== '') {
             return $viewAs;
         }
-        json_error('Super admin must specify company_id', 422);
+        json_error('Select a company from the sidebar before adding data', 422);
     }
     return $ctx['company_id'];
 }

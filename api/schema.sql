@@ -11,6 +11,7 @@ DROP TABLE IF EXISTS payments;
 DROP TABLE IF EXISTS expenses;
 DROP TABLE IF EXISTS projects;
 DROP TABLE IF EXISTS clients;
+DROP TABLE IF EXISTS customer_accounts;
 DROP TABLE IF EXISTS profiles;
 DROP TABLE IF EXISTS companies;
 DROP TABLE IF EXISTS password_resets;
@@ -73,8 +74,8 @@ CREATE TABLE profiles (
 
 -- ── Business tables ──────────────────────────────────────────────────────────
 
--- CRM: clients/contacts for marketing.
-CREATE TABLE clients (
+-- B2B customer organizations (NOT the Skyline tenant in `companies`).
+CREATE TABLE customer_accounts (
   id         char(36)     NOT NULL,
   company_id char(36)     NOT NULL,
   name       varchar(255) NOT NULL,
@@ -82,13 +83,34 @@ CREATE TABLE clients (
   phone      varchar(50)  DEFAULT NULL,
   address    text         DEFAULT NULL,
   location   varchar(255) DEFAULT NULL,
-  source     varchar(255) DEFAULT NULL,
-  tags       json         DEFAULT NULL,
   notes      text         DEFAULT NULL,
   created_at timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
+  KEY idx_customer_accounts_company_id (company_id),
+  CONSTRAINT fk_customer_accounts_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- CRM contacts. B2C = individual; B2B = contact person at a customer_accounts row.
+CREATE TABLE clients (
+  id                  char(36)     NOT NULL,
+  company_id          char(36)     NOT NULL,
+  client_type         varchar(32)  NOT NULL DEFAULT 'b2c',
+  customer_account_id char(36)     DEFAULT NULL,
+  name                varchar(255) NOT NULL,
+  contact_title       varchar(255) DEFAULT NULL,
+  email               varchar(255) DEFAULT NULL,
+  phone               varchar(50)  DEFAULT NULL,
+  address             text         DEFAULT NULL,
+  location            varchar(255) DEFAULT NULL,
+  source              varchar(255) DEFAULT NULL,
+  tags                json         DEFAULT NULL,
+  notes               text         DEFAULT NULL,
+  created_at          timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
   KEY idx_clients_company_id (company_id),
-  CONSTRAINT fk_clients_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+  KEY idx_clients_customer_account_id (customer_account_id),
+  CONSTRAINT fk_clients_company          FOREIGN KEY (company_id)          REFERENCES companies(id)          ON DELETE CASCADE,
+  CONSTRAINT fk_clients_customer_account FOREIGN KEY (customer_account_id) REFERENCES customer_accounts(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE projects (
@@ -129,6 +151,7 @@ CREATE TABLE expenses (
   id           char(36)       NOT NULL,
   company_id   char(36)       NOT NULL,
   project_id   char(36)       NOT NULL,
+  expense_type varchar(32)    NOT NULL DEFAULT 'other',
   amount       decimal(12, 2) NOT NULL,
   description  text           DEFAULT NULL,
   expense_date date           NOT NULL,
@@ -142,12 +165,14 @@ CREATE TABLE expenses (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE payments (
-  id           char(36)       NOT NULL,
-  company_id   char(36)       NOT NULL,
-  project_id   char(36)       NOT NULL,
-  amount       decimal(12, 2) NOT NULL,
-  payment_date date           NOT NULL,
-  created_at   timestamp      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  id              char(36)       NOT NULL,
+  company_id      char(36)       NOT NULL,
+  project_id      char(36)       NOT NULL,
+  payment_method  varchar(32)    NOT NULL DEFAULT 'cash',
+  amount          decimal(12, 2) NOT NULL,
+  payment_date    date           NOT NULL,
+  comments        text           DEFAULT NULL,
+  created_at      timestamp      NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_payments_company_id   (company_id),
   KEY idx_payments_project_id   (project_id),
@@ -169,3 +194,22 @@ CREATE TABLE payments (
 --
 -- Super admins may have a NULL company_id. Use the Admin page and sidebar
 -- company switcher to view each company's data, or leave unset to see all.
+--
+-- Existing DBs: migrate to B2B/B2C model
+--   CREATE TABLE customer_accounts (...);  -- copy from schema above
+--   ALTER TABLE clients
+--     ADD COLUMN customer_account_id char(36) DEFAULT NULL AFTER client_type,
+--     ADD COLUMN contact_title varchar(255) DEFAULT NULL AFTER name,
+--     ADD KEY idx_clients_customer_account_id (customer_account_id),
+--     ADD CONSTRAINT fk_clients_customer_account FOREIGN KEY (customer_account_id)
+--       REFERENCES customer_accounts(id) ON DELETE SET NULL;
+--   UPDATE clients SET client_type = 'b2c' WHERE client_type = 'private_client';
+--   UPDATE clients SET client_type = 'b2b' WHERE client_type = 'contractor';
+--   ALTER TABLE clients MODIFY client_type varchar(32) NOT NULL DEFAULT 'b2c';
+--
+-- Existing DBs: add expense type
+--   ALTER TABLE expenses ADD COLUMN expense_type varchar(32) NOT NULL DEFAULT 'other' AFTER project_id;
+--
+-- Existing DBs: add payment method and comments
+--   ALTER TABLE payments ADD COLUMN payment_method varchar(32) NOT NULL DEFAULT 'cash' AFTER project_id;
+--   ALTER TABLE payments ADD COLUMN comments text DEFAULT NULL AFTER payment_date;

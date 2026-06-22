@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Plus, Search } from 'lucide-react';
 import AddClientForm from '../components/AddClientForm';
 import { listClients, deleteClient } from '../api/clients';
+import { clientTypeLabel, isB2BClient } from '../constants';
 import '../components/ProjectTable.css';
 
 export default function ClientsPage() {
@@ -41,7 +42,7 @@ export default function ClientsPage() {
     const q = query.trim().toLowerCase();
     if (!q) return clients;
     return clients.filter((c) =>
-      [c.name, c.email, c.phone, c.location, c.source, (c.tags || []).join(' ')]
+      [c.name, c.email, c.phone, c.location, c.source, c.customer_account?.name, clientTypeLabel(c.client_type), (c.tags || []).join(' ')]
         .filter(Boolean)
         .some((v) => v.toLowerCase().includes(q))
     );
@@ -97,6 +98,8 @@ export default function ClientsPage() {
                 <thead>
                   <tr>
                     <th>Name</th>
+                    <th>Type</th>
+                    <th>Company</th>
                     <th>Phone</th>
                     <th>Email</th>
                     <th>Location</th>
@@ -107,11 +110,18 @@ export default function ClientsPage() {
                 </thead>
                 <tbody>
                   {filtered.length === 0 ? (
-                    <tr><td colSpan={7} className="data-table-empty">No clients found.</td></tr>
+                    <tr><td colSpan={9} className="data-table-empty">No clients found.</td></tr>
                   ) : (
                     filtered.map((c) => (
                       <tr key={c.id}>
-                        <td className="project-client-cell">{c.name}</td>
+                        <td className="project-client-cell">
+                          {c.name}
+                          {isB2BClient(c) && c.contact_title && (
+                            <span className="data-table-muted"> · {c.contact_title}</span>
+                          )}
+                        </td>
+                        <td>{clientTypeLabel(c.client_type)}</td>
+                        <td>{c.customer_account?.name || '—'}</td>
                         <td>{c.phone || '—'}</td>
                         <td>{c.email || '—'}</td>
                         <td>{c.location || '—'}</td>

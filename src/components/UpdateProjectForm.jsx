@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { updateProject } from '../api/projects';
 import { listClients } from '../api/clients';
-import { PROJECT_STATUSES, COMPLETED_STATUSES } from '../constants';
+import { PROJECT_STATUSES, COMPLETED_STATUSES, clientDisplayName } from '../constants';
 import { toDateInputValue } from '../utils/format';
 import './UpdateProjectForm.css';
 
@@ -13,7 +13,6 @@ function projectToForm(project) {
     location: project.location || '',
     work_description: project.work_description || '',
     total_quoted_amount: project.total_quoted_amount || 0,
-    amount_received: project.amount_received || 0,
     status: project.status || 'site visit requested',
     completion_percent: project.completion_percent || 0,
     start_date: project.start_date || '',
@@ -45,8 +44,8 @@ function UpdateProjectForm({ project, onUpdate, onClose }) {
     setForm((prev) => ({
       ...prev,
       client_id: clientId,
-      client_name: client ? client.name : prev.client_name,
-      location: client?.location || prev.location,
+      client_name: client ? clientDisplayName(client) : prev.client_name,
+      location: client?.location || client?.customer_account?.location || prev.location,
     }));
   }
 
@@ -68,7 +67,6 @@ function UpdateProjectForm({ project, onUpdate, onClose }) {
         location: form.location,
         work_description: form.work_description,
         total_quoted_amount: Number(form.total_quoted_amount),
-        amount_received: Number(form.amount_received),
         status: form.status,
         completion_percent: completionPercent,
         start_date: form.start_date || null,
@@ -106,7 +104,7 @@ function UpdateProjectForm({ project, onUpdate, onClose }) {
             <select value={form.client_id} onChange={handleClientSelect}>
               <option value="">— None / new —</option>
               {clients.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+                <option key={c.id} value={c.id}>{clientDisplayName(c)}</option>
               ))}
             </select>
           </div>
@@ -179,16 +177,6 @@ function UpdateProjectForm({ project, onUpdate, onClose }) {
                 step="0.01"
                 name="total_quoted_amount"
                 value={form.total_quoted_amount}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="form-group half-width">
-              <label>Amount Received (INR)</label>
-              <input
-                type="number"
-                step="0.01"
-                name="amount_received"
-                value={form.amount_received}
                 onChange={handleChange}
               />
             </div>

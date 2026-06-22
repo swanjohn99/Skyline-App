@@ -239,8 +239,26 @@
 
 .project-table th:last-child,
 .project-table td:last-child {
-  width: 90px;
+  width: 72px;
   text-align: center;
+}
+
+.table-actions-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: stretch;
+}
+
+.table-actions-stack .btn-edit {
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+}
+
+.project-table tbody tr.project-row--completed .table-actions-stack .btn-edit--danger {
+  color: var(--color-danger);
+  background: rgba(239, 68, 68, 0.12);
 }
 
 /* ── Status badges ── */

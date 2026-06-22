@@ -20,3 +20,7 @@ export async function createProject(project) {
 export async function updateProject(id, changes) {
   await api.patch(`/projects/${id}`, changes);
 }
+
+export async function deleteProject(id) {
+  await api.del(`/projects/${id}`);
+}

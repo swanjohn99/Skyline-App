@@ -6,11 +6,15 @@ import ExpenseTable from '../components/ExpenseTable';
 export default function ExpensePage() {
   const [refresh, setRefresh] = useState(0);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editing, setEditing] = useState(null);
 
-  function handleExpenseAdded() {
-    setRefresh(prev => prev + 1);
+  function handleSaved() {
+    setRefresh((prev) => prev + 1);
     setShowAddForm(false);
+    setEditing(null);
   }
+
+  const isFormOpen = showAddForm || editing;
 
   return (
     <div className="page">
@@ -19,7 +23,7 @@ export default function ExpensePage() {
           <h1 className="page-title">Expenses</h1>
           <p className="page-subtitle">Log and review project-related expenses.</p>
         </div>
-        {!showAddForm && (
+        {!isFormOpen && (
           <button type="button" className="btn btn-primary" onClick={() => setShowAddForm(true)}>
             <Plus size={17} />
             Add Expense
@@ -28,13 +32,18 @@ export default function ExpensePage() {
       </header>
 
       <div className="page-stack">
-        {showAddForm && (
+        {isFormOpen && (
           <AddExpenseForm
-            onExpenseAdded={handleExpenseAdded}
-            onCancel={() => setShowAddForm(false)}
+            expense={editing}
+            onExpenseAdded={handleSaved}
+            onCancel={() => { setShowAddForm(false); setEditing(null); }}
           />
         )}
-        <ExpenseTable refreshKey={refresh} />
+        <ExpenseTable
+          refreshKey={refresh}
+          onEdit={setEditing}
+          onDeleted={() => setRefresh((prev) => prev + 1)}
+        />
       </div>
     </div>
   );

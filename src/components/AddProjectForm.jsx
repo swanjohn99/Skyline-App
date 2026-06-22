@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createProject } from '../api/projects';
 import { listClients } from '../api/clients';
-import { PROJECT_STATUSES, COMPLETED_STATUSES } from '../constants';
+import { PROJECT_STATUSES, COMPLETED_STATUSES, clientDisplayName } from '../constants';
 import './AddProjectForm.css';
 
 const INITIAL_FORM = {
@@ -11,7 +11,6 @@ const INITIAL_FORM = {
   location: '',
   work_description: '',
   total_quoted_amount: 0,
-  amount_received: 0,
   status: 'site visit requested',
   start_date: '',
   end_date: '',
@@ -45,8 +44,8 @@ function AddProjectForm({ onProjectAdded, onCancel }) {
     setForm((prev) => ({
       ...prev,
       client_id: clientId,
-      client_name: client ? client.name : prev.client_name,
-      location: client?.location || prev.location,
+      client_name: client ? clientDisplayName(client) : prev.client_name,
+      location: client?.location || client?.customer_account?.location || prev.location,
     }));
   }
 
@@ -68,7 +67,6 @@ function AddProjectForm({ onProjectAdded, onCancel }) {
         location: form.location,
         work_description: form.work_description,
         total_quoted_amount: form.total_quoted_amount,
-        amount_received: form.amount_received,
         status: form.status,
         completion_percent: completionPercent,
         start_date: form.start_date || null,
@@ -99,7 +97,7 @@ function AddProjectForm({ onProjectAdded, onCancel }) {
             <select value={form.client_id} onChange={handleClientSelect}>
               <option value="">— None / new —</option>
               {clients.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+                <option key={c.id} value={c.id}>{clientDisplayName(c)}</option>
               ))}
             </select>
           </div>
@@ -114,10 +112,6 @@ function AddProjectForm({ onProjectAdded, onCancel }) {
           <div className="add-project-form-field">
             <label>Total Amount (INR)</label>
             <input name="total_quoted_amount" type="number" value={form.total_quoted_amount} onChange={handleChange} />
-          </div>
-          <div className="add-project-form-field">
-            <label>Amount Received (INR)</label>
-            <input name="amount_received" type="number" value={form.amount_received} onChange={handleChange} />
           </div>
           <div className="add-project-form-field">
             <label>Status</label>

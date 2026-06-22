@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import { FolderOpen, Layers, TrendingUp, CalendarDays } from 'lucide-react';
-import { getDashboardData, isCompleted } from '../api/dashboard';
+import { getDashboardData } from '../api/dashboard';
 import { formatCompactCurrency, formatCurrency } from '../utils/format';
 import { CHART_COLORS, MONTH_LABELS } from '../constants';
 
@@ -23,7 +23,7 @@ export default function Dashboard() {
   useEffect(() => {
     async function load() {
       try {
-        const { activeCount, totalCount, projects, expenses, payments } = await getDashboardData();
+        const { activeCount, totalCount, expenses, payments } = await getDashboardData();
 
         const firstDayMonth = new Date(currentYear, now.getMonth(), 1);
         const firstDayYear = new Date(currentYear, 0, 1);
@@ -31,18 +31,17 @@ export default function Dashboard() {
         const inMonth = (dateStr) => dateStr && new Date(dateStr) >= firstDayMonth;
         const inYear = (dateStr) => dateStr && new Date(dateStr) >= firstDayYear;
 
-        const completedJobs = projects.filter((p) => isCompleted(p.status));
+        const incomeMonth = sum(payments, (p) => inMonth(p.payment_date));
+        const expensesMonth = sum(expenses, (e) => inMonth(e.expense_date));
+        const incomeYear = sum(payments, (p) => inYear(p.payment_date));
+        const expensesYear = sum(expenses, (e) => inYear(e.expense_date));
 
         setCounts({ active: activeCount, total: totalCount });
         setMetrics({
-          incomeMonth: sum(payments, (p) => inMonth(p.payment_date)),
-          expensesMonth: sum(expenses, (e) => inMonth(e.expense_date)),
-          profitMonth: completedJobs
-            .filter((p) => inMonth(p.end_date))
-            .reduce((acc, p) => acc + (Number(p.total_quoted_amount) || 0), 0),
-          profitYear: completedJobs
-            .filter((p) => inYear(p.end_date))
-            .reduce((acc, p) => acc + (Number(p.total_quoted_amount) || 0), 0),
+          incomeMonth,
+          expensesMonth,
+          profitMonth: incomeMonth - expensesMonth,
+          profitYear: incomeYear - expensesYear,
         });
 
         const months = MONTH_LABELS.map((name) => ({ name, Income: 0, Expenses: 0 }));

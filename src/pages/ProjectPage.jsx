@@ -39,6 +39,7 @@ export default function ProjectPage() {
         <ProjectTable
           refreshKey={refresh}
           onEdit={(p) => setEditingProject(p)}
+          onDeleted={() => setRefresh((prev) => prev + 1)}
         />
       </div>
 

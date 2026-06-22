@@ -9,13 +9,29 @@ require_once __DIR__ . '/../lib/session.php';
 const CLOSED_STATUSES = ['completed', 'rejected'];
 const PROJECT_FIELDS = [
     'client_id', 'project_title', 'client_name', 'location', 'work_description',
-    'total_quoted_amount', 'amount_received', 'status', 'completion_percent',
+    'total_quoted_amount', 'status', 'completion_percent',
     'start_date', 'end_date',
 ];
 
+function projects_select_sql(): string
+{
+    return 'SELECT p.*,
+            (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE project_id = p.id) AS amount_received_computed
+            FROM projects p';
+}
+
+function project_out(array $row): array
+{
+    if (isset($row['amount_received_computed'])) {
+        $row['amount_received'] = (float) $row['amount_received_computed'];
+        unset($row['amount_received_computed']);
+    }
+    return $row;
+}
+
 function route_projects(string $method, array $segments): void
 {
-    $write = in_array($method, ['POST', 'PATCH'], true);
+    $write = in_array($method, ['POST', 'PATCH', 'DELETE'], true);
     $ctx = data_context($write);
     $id = $segments[0] ?? null;
 
@@ -35,15 +51,20 @@ function route_projects(string $method, array $segments): void
     if ($method === 'PATCH' && $id !== null) {
         projects_update($ctx, $id);
     }
+    if ($method === 'DELETE' && $id !== null) {
+        projects_delete($ctx, $id);
+    }
     json_error('Not found', 404);
 }
 
 function projects_list(array $ctx): void
 {
-    $scope = company_scope($ctx);
-    $stmt = db()->prepare("SELECT * FROM projects WHERE {$scope['sql']} ORDER BY start_date DESC");
+    $scope = company_scope($ctx, 'p');
+    $stmt = db()->prepare(
+        projects_select_sql() . " WHERE {$scope['sql']} ORDER BY p.start_date DESC"
+    );
     $stmt->execute($scope['params']);
-    json_response($stmt->fetchAll());
+    json_response(array_map('project_out', $stmt->fetchAll()));
 }
 
 function projects_list_open(array $ctx): void
@@ -61,9 +82,13 @@ function projects_list_open(array $ctx): void
 function projects_get(array $ctx, string $id): void
 {
     require_owned_row($ctx, 'projects', $id);
-    $stmt = db()->prepare('SELECT * FROM projects WHERE id = ?');
+    $stmt = db()->prepare(projects_select_sql() . ' WHERE p.id = ?');
     $stmt->execute([$id]);
-    json_response($stmt->fetch());
+    $row = $stmt->fetch();
+    if (!$row) {
+        json_error('Not found', 404);
+    }
+    json_response(project_out($row));
 }
 
 function projects_create(array $ctx): void
@@ -87,9 +112,9 @@ function projects_create(array $ctx): void
     db()->prepare('INSERT INTO projects (' . implode(', ', $cols) . ") VALUES ($placeholders)")
         ->execute($vals);
 
-    $stmt = db()->prepare('SELECT * FROM projects WHERE id = ?');
+    $stmt = db()->prepare(projects_select_sql() . ' WHERE p.id = ?');
     $stmt->execute([$id]);
-    json_response($stmt->fetch(), 201);
+    json_response(project_out($stmt->fetch()), 201);
 }
 
 function projects_update(array $ctx, string $id): void
@@ -110,5 +135,12 @@ function projects_update(array $ctx, string $id): void
     }
     $params[] = $id;
     db()->prepare('UPDATE projects SET ' . implode(', ', $sets) . ' WHERE id = ?')->execute($params);
+    json_response(['ok' => true]);
+}
+
+function projects_delete(array $ctx, string $id): void
+{
+    require_owned_row($ctx, 'projects', $id);
+    db()->prepare('DELETE FROM projects WHERE id = ?')->execute([$id]);
     json_response(['ok' => true]);
 }

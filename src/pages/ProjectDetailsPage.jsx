@@ -3,20 +3,23 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Pencil } from 'lucide-react';
 import { getProject } from '../api/projects';
 import { listExpensesByProject } from '../api/expenses';
+import { listPaymentsByProject } from '../api/payments';
 import UpdateProjectForm from '../components/UpdateProjectForm';
 import { formatCurrency, formatDate } from '../utils/format';
-import { statusBadgeClass } from '../constants';
+import { statusBadgeClass, expenseTypeLabel, paymentMethodLabel } from '../constants';
 
 export default function ProjectDetailsPage() {
   const { id } = useParams();
   const [project, setProject] = useState(null);
   const [expenses, setExpenses] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [editing, setEditing] = useState(false);
   const [refresh, setRefresh] = useState(0);
 
   useEffect(() => {
     getProject(id).then(setProject).catch(() => setProject(null));
     listExpensesByProject(id).then(setExpenses).catch(() => setExpenses([]));
+    listPaymentsByProject(id).then(setPayments).catch(() => setPayments([]));
   }, [id, refresh]);
 
   function handleUpdated() {
@@ -106,12 +109,43 @@ export default function ProjectDetailsPage() {
         </div>
       </div>
 
+      <h3 className="section-heading">Payments</h3>
+      <div className="data-table-wrapper">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Method</th>
+              <th>Comments</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {payments.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="data-table-empty">No payments recorded. Add payments from the Payments page.</td>
+              </tr>
+            ) : (
+              payments.map((pay) => (
+                <tr key={pay.id}>
+                  <td>{formatDate(pay.payment_date)}</td>
+                  <td>{paymentMethodLabel(pay.payment_method)}</td>
+                  <td>{pay.comments || '—'}</td>
+                  <td className="data-table-amount">{formatCurrency(pay.amount)}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
       <h3 className="section-heading">Expenses</h3>
       <div className="data-table-wrapper">
         <table className="data-table">
           <thead>
             <tr>
               <th>Description</th>
+              <th>Type</th>
               <th>Date</th>
               <th>Amount</th>
             </tr>
@@ -119,12 +153,13 @@ export default function ProjectDetailsPage() {
           <tbody>
             {expenses.length === 0 ? (
               <tr>
-                <td colSpan={3} className="data-table-empty">No expenses recorded for this project.</td>
+                <td colSpan={4} className="data-table-empty">No expenses recorded for this project.</td>
               </tr>
             ) : (
               expenses.map(exp => (
                 <tr key={exp.id}>
                   <td>{exp.description || '—'}</td>
+                  <td>{expenseTypeLabel(exp.expense_type)}</td>
                   <td>{formatDate(exp.expense_date)}</td>
                   <td className="data-table-amount">{formatCurrency(exp.amount)}</td>
                 </tr>

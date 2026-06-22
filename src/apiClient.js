@@ -22,25 +22,36 @@ export function setViewCompanyId(id) {
   }
 }
 
-function appendViewCompany(path, method) {
-  if (method !== 'GET') return path;
+function appendViewCompany(path, method, body) {
   const companyId = getViewCompanyId();
-  if (!companyId || path.includes('company_id=')) return path;
+  if (!companyId || path.includes('company_id=')) {
+    return { path, body };
+  }
+
+  if (method === 'GET') {
+    const sep = path.includes('?') ? '&' : '?';
+    return { path: `${path}${sep}company_id=${encodeURIComponent(companyId)}`, body };
+  }
+
+  if (body !== undefined && typeof body === 'object' && body !== null && !body.company_id) {
+    return { path, body: { ...body, company_id: companyId } };
+  }
+
   const sep = path.includes('?') ? '&' : '?';
-  return `${path}${sep}company_id=${encodeURIComponent(companyId)}`;
+  return { path: `${path}${sep}company_id=${encodeURIComponent(companyId)}`, body };
 }
 
 async function request(method, path, body) {
-  const finalPath = appendViewCompany(path, method);
+  const { path: finalPath, body: finalBody } = appendViewCompany(path, method, body);
   const options = {
     method,
     credentials: 'include',
     headers: {},
   };
 
-  if (body !== undefined) {
+  if (finalBody !== undefined) {
     options.headers['Content-Type'] = 'application/json';
-    options.body = JSON.stringify(body);
+    options.body = JSON.stringify(finalBody);
   }
 
   const res = await fetch(`${API_BASE}${finalPath}`, options);

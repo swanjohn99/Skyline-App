@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { Columns3 } from 'lucide-react';
-import { listProjects } from '../api/projects';
+import { listProjects, deleteProject } from '../api/projects';
 import { formatCurrency, formatDate } from '../utils/format';
 import { statusBadgeClass } from '../constants';
 import './ProjectTable.css';
@@ -20,9 +20,10 @@ const DEFAULT_VISIBLE_COLUMNS = Object.fromEntries(
   COLUMN_OPTIONS.map(({ key }) => [key, true])
 );
 
-function ProjectTable({ refreshKey, onEdit }) {
+function ProjectTable({ refreshKey, onEdit, onDeleted }) {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState(null);
   const [visibleColumns, setVisibleColumns] = useState(() => {
     try {
       const savedColumns = JSON.parse(localStorage.getItem('skyline-project-columns'));
@@ -48,6 +49,22 @@ function ProjectTable({ refreshKey, onEdit }) {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [refreshKey]);
+
+  async function handleDelete(project) {
+    if (!window.confirm(`Delete "${project.project_title}"? Expenses and payments for this project will also be removed.`)) {
+      return;
+    }
+    setDeletingId(project.id);
+    try {
+      await deleteProject(project.id);
+      onDeleted?.();
+    } catch (err) {
+      console.error('Error deleting project:', err);
+      window.alert(err.message || 'Failed to delete project.');
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   if (loading) {
     return (
@@ -134,7 +151,17 @@ function ProjectTable({ refreshKey, onEdit }) {
                       </td>
                     )}
                     <td>
-                      <button type="button" className="btn-edit" onClick={() => onEdit(p)}>Edit</button>
+                      <div className="table-actions-stack">
+                        <button type="button" className="btn-edit" onClick={() => onEdit(p)}>Edit</button>
+                        <button
+                          type="button"
+                          className="btn-edit btn-edit--danger"
+                          onClick={() => handleDelete(p)}
+                          disabled={deletingId === p.id}
+                        >
+                          {deletingId === p.id ? '…' : 'Delete'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
