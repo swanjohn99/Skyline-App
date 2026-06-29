@@ -2,8 +2,13 @@ import { api } from '../apiClient';
 
 // Returns a session-like object ({ user }) when logged in, otherwise null.
 export async function getSession() {
-  const data = await api.get('/auth/session');
-  return data?.user ? { user: data.user } : null;
+  try {
+    const data = await api.get('/auth/session');
+    return data?.user ? { user: data.user } : null;
+  } catch (err) {
+    if (err.status === 401) return null;
+    throw err;
+  }
 }
 
 export async function signInWithPassword(email, password) {

@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import AddPaymentForm from '../components/AddPaymentForm';
 import PaymentsTable from '../components/PaymentsTable';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function Payments() {
+  usePageTitle('Payments');
   const [refresh, setRefresh] = useState(0);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editing, setEditing] = useState(null);

@@ -12,10 +12,14 @@ import { setViewCompanyId } from '../apiClient';
 import { useAuth } from '../context/auth';
 import { ROLES } from '../constants';
 import { formatDate } from '../utils/format';
+import { usePagination } from '../hooks/usePagination';
+import TablePagination from '../components/TablePagination';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const ROLE_OPTIONS = [ROLES.MEMBER, ROLES.OWNER, ROLES.SUPER_ADMIN];
 
 export default function AdminPage() {
+  usePageTitle('Admin');
   const navigate = useNavigate();
   const { user } = useAuth();
   const [tab, setTab] = useState('companies');
@@ -98,6 +102,9 @@ export default function AdminPage() {
     window.location.reload();
   }
 
+  const companiesPagination = usePagination(companies);
+  const usersPagination = usePagination(users);
+
   return (
     <div className="page">
       <header className="page-header">
@@ -129,6 +136,7 @@ export default function AdminPage() {
       {loading ? (
         <div className="loading-state"><div className="loading-spinner" />Loading…</div>
       ) : tab === 'companies' ? (
+        <>
         <div className="data-table-wrapper">
           <table className="data-table">
             <thead>
@@ -143,7 +151,7 @@ export default function AdminPage() {
               {companies.length === 0 ? (
                 <tr><td colSpan={4} className="data-table-empty">No companies yet.</td></tr>
               ) : (
-                companies.map((c) => (
+                companiesPagination.pageItems.map((c) => (
                   <tr key={c.id}>
                     <td>{c.name}</td>
                     <td>{c.member_count ?? 0}</td>
@@ -163,7 +171,16 @@ export default function AdminPage() {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={companiesPagination.page}
+          totalPages={companiesPagination.totalPages}
+          totalCount={companiesPagination.totalCount}
+          onPageChange={companiesPagination.setPage}
+          show={companiesPagination.showPagination}
+        />
+        </>
       ) : (
+        <>
         <div className="data-table-wrapper">
           <table className="data-table">
             <thead>
@@ -180,7 +197,7 @@ export default function AdminPage() {
               {users.length === 0 ? (
                 <tr><td colSpan={6} className="data-table-empty">No users yet.</td></tr>
               ) : (
-                users.map((u) => {
+                usersPagination.pageItems.map((u) => {
                   const isSelf = u.id === user?.id;
                   return (
                     <tr key={u.id}>
@@ -229,6 +246,14 @@ export default function AdminPage() {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={usersPagination.page}
+          totalPages={usersPagination.totalPages}
+          totalCount={usersPagination.totalCount}
+          onPageChange={usersPagination.setPage}
+          show={usersPagination.showPagination}
+        />
+        </>
       )}
     </div>
   );

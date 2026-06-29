@@ -3,7 +3,10 @@
   RewriteEngine On
   RewriteBase /api/
 
-  # Allow real files (e.g. schema.sql is blocked below) to be skipped only for index.php.
+  # Serve uploaded files directly.
+  RewriteCond %{REQUEST_FILENAME} -f
+  RewriteRule ^ - [L]
+
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule ^ index.php [L]
 </IfModule>

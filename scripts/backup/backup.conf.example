@@ -1,0 +1,28 @@
+# Copy to backup.conf and edit for your server. Never commit backup.conf.
+
+# Where daily dumps are stored (must be outside the web root).
+BACKUP_ROOT="/var/backups/skyline"
+
+# Web root containing api/ and app/ (or dist deployed as app/).
+WEB_ROOT="/home/user/public_html"
+
+# Path to api/.env (DB credentials are read from here).
+ENV_FILE="/home/user/public_html/api/.env"
+
+# Delete local backups older than this many days.
+RETENTION_DAYS=14
+
+# Warn in the log when backup partition is above this percent full.
+DISK_WARN_PERCENT=80
+
+# ── Optional offsite sync (runs after a successful local backup) ──
+OFFSITE_ENABLED=0
+
+# rclone remote name (configure with: rclone config)
+# Example: skyline-backups -> s3 bucket or Google Drive
+RCLONE_REMOTE="skyline-backups"
+RCLONE_DEST="skyline"
+
+# Alternative: AWS CLI sync (set OFFSITE_ENABLED=1 and S3_BUCKET)
+S3_BUCKET=""
+S3_PREFIX="skyline"

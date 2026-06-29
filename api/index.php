@@ -65,6 +65,22 @@ switch ($resource) {
         require __DIR__ . '/routes/payments.php';
         route_payments($method, $segments);
         break;
+    case 'milestones':
+        require __DIR__ . '/routes/milestones.php';
+        route_milestones($method, $segments);
+        break;
+    case 'lenders':
+        require __DIR__ . '/routes/lenders.php';
+        route_lenders($method, $segments);
+        break;
+    case 'loans':
+        require __DIR__ . '/routes/loans.php';
+        route_loans($method, $segments);
+        break;
+    case 'loan-repayments':
+        require __DIR__ . '/routes/loans.php';
+        route_loan_repayments($method, $segments);
+        break;
     case 'dashboard':
         require __DIR__ . '/routes/dashboard.php';
         route_dashboard($method, $segments);

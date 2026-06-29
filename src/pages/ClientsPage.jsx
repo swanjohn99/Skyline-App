@@ -1,11 +1,16 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { Plus, Search } from 'lucide-react';
 import AddClientForm from '../components/AddClientForm';
 import { listClients, deleteClient } from '../api/clients';
 import { clientTypeLabel, isB2BClient } from '../constants';
+import { usePagination } from '../hooks/usePagination';
+import TablePagination from '../components/TablePagination';
+import { usePageTitle } from '../hooks/usePageTitle';
 import '../components/ProjectTable.css';
 
 export default function ClientsPage() {
+  usePageTitle('Clients');
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -47,6 +52,10 @@ export default function ClientsPage() {
         .some((v) => v.toLowerCase().includes(q))
     );
   }, [clients, query]);
+
+  const {
+    page, setPage, pageItems, totalPages, totalCount, showPagination,
+  } = usePagination(filtered, undefined, `${query}-${clients.length}`);
 
   const isFormOpen = showForm || editing;
 
@@ -93,6 +102,7 @@ export default function ClientsPage() {
           {loading ? (
             <div className="loading-state"><div className="loading-spinner" />Loading clients…</div>
           ) : (
+            <>
             <div className="data-table-wrapper">
               <table className="data-table">
                 <thead>
@@ -112,10 +122,10 @@ export default function ClientsPage() {
                   {filtered.length === 0 ? (
                     <tr><td colSpan={9} className="data-table-empty">No clients found.</td></tr>
                   ) : (
-                    filtered.map((c) => (
+                    pageItems.map((c) => (
                       <tr key={c.id}>
                         <td className="project-client-cell">
-                          {c.name}
+                          <Link to={`/clients/${c.id}`}>{c.name}</Link>
                           {isB2BClient(c) && c.contact_title && (
                             <span className="data-table-muted"> · {c.contact_title}</span>
                           )}
@@ -141,6 +151,14 @@ export default function ClientsPage() {
                 </tbody>
               </table>
             </div>
+            <TablePagination
+              page={page}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              onPageChange={setPage}
+              show={showPagination}
+            />
+            </>
           )}
         </div>
       </div>

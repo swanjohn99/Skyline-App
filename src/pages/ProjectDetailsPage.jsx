@@ -1,12 +1,21 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Pencil } from 'lucide-react';
+import { ArrowLeft, Pencil, Plus } from 'lucide-react';
 import { getProject } from '../api/projects';
 import { listExpensesByProject } from '../api/expenses';
 import { listPaymentsByProject } from '../api/payments';
 import UpdateProjectForm from '../components/UpdateProjectForm';
+import AddPaymentForm from '../components/AddPaymentForm';
+import AddExpenseForm from '../components/AddExpenseForm';
+import AddMilestoneForm from '../components/AddMilestoneForm';
+import MilestoneTable from '../components/MilestoneTable';
+import FinancialBreakdownChart from '../components/FinancialBreakdownChart';
+import TablePagination from '../components/TablePagination';
 import { formatCurrency, formatDate } from '../utils/format';
 import { statusBadgeClass, expenseTypeLabel, paymentMethodLabel } from '../constants';
+import { projectPending, hasQuotedTotal } from '../utils/projectFinance';
+import { usePagination } from '../hooks/usePagination';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function ProjectDetailsPage() {
   const { id } = useParams();
@@ -15,6 +24,10 @@ export default function ProjectDetailsPage() {
   const [payments, setPayments] = useState([]);
   const [editing, setEditing] = useState(false);
   const [refresh, setRefresh] = useState(0);
+  const [showAddPayment, setShowAddPayment] = useState(false);
+  const [showAddExpense, setShowAddExpense] = useState(false);
+  const [showAddMilestone, setShowAddMilestone] = useState(false);
+  const [editingMilestone, setEditingMilestone] = useState(null);
 
   useEffect(() => {
     getProject(id).then(setProject).catch(() => setProject(null));
@@ -22,7 +35,28 @@ export default function ProjectDetailsPage() {
     listPaymentsByProject(id).then(setPayments).catch(() => setPayments([]));
   }, [id, refresh]);
 
+  const paymentsPagination = usePagination(payments, undefined, refresh);
+  const expensesPagination = usePagination(expenses, undefined, refresh);
+
+  usePageTitle(project?.project_title || 'Project');
+
   function handleUpdated() {
+    setRefresh((n) => n + 1);
+  }
+
+  function handlePaymentAdded() {
+    setShowAddPayment(false);
+    handleUpdated();
+  }
+
+  function handleExpenseAdded() {
+    setShowAddExpense(false);
+    handleUpdated();
+  }
+
+  function handleMilestoneSaved() {
+    setShowAddMilestone(false);
+    setEditingMilestone(null);
     setRefresh((n) => n + 1);
   }
 
@@ -37,8 +71,9 @@ export default function ProjectDetailsPage() {
     );
   }
 
-  const pending = (project.total_quoted_amount || 0) - (project.amount_received || 0);
-  const totalExpenses = expenses.reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
+  const pending = projectPending(project);
+  const totalExpenses = project.total_expenses ?? expenses.reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
+  const profit = project.profit ?? ((project.amount_received || 0) - totalExpenses);
 
   return (
     <div className="page">
@@ -90,7 +125,11 @@ export default function ProjectDetailsPage() {
           <p className="detail-card-title">Financials</p>
           <div className="detail-row">
             <span className="detail-row-label">Total Quoted</span>
-            <span className="detail-row-value">{formatCurrency(project.total_quoted_amount)}</span>
+            <span className="detail-row-value">
+              {hasQuotedTotal(project.total_quoted_amount)
+                ? formatCurrency(project.total_quoted_amount)
+                : '—'}
+            </span>
           </div>
           <div className="detail-row">
             <span className="detail-row-label">Received</span>
@@ -98,18 +137,47 @@ export default function ProjectDetailsPage() {
           </div>
           <div className="detail-row">
             <span className="detail-row-label">Pending</span>
-            <span className={`detail-row-value${pending > 0 ? ' detail-row-value--pending' : ' detail-row-value--success'}`}>
-              {formatCurrency(pending)}
+            <span className={`detail-row-value${pending != null && pending > 0 ? ' detail-row-value--pending' : pending != null ? ' detail-row-value--success' : ''}`}>
+              {pending != null ? formatCurrency(pending) : '—'}
             </span>
           </div>
           <div className="detail-row">
             <span className="detail-row-label">Total Expenses</span>
             <span className="detail-row-value">{formatCurrency(totalExpenses)}</span>
           </div>
+          <div className="detail-row">
+            <span className="detail-row-label">Profit</span>
+            <span className={`detail-row-value${profit > 0 ? ' detail-row-value--success' : profit < 0 ? ' detail-row-value--pending' : ''}`}>
+              {formatCurrency(profit)}
+            </span>
+          </div>
         </div>
       </div>
 
-      <h3 className="section-heading">Payments</h3>
+      <FinancialBreakdownChart
+        expenses={expenses}
+        income={project.amount_received}
+        title="Spending & profit breakdown"
+      />
+
+      <div className="section-header-row">
+        <h3 className="section-heading">Payments</h3>
+        {!showAddPayment && (
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => setShowAddPayment(true)}>
+            <Plus size={15} />
+            Add Payment
+          </button>
+        )}
+      </div>
+      {showAddPayment && (
+        <div className="form-card" style={{ marginBottom: 16 }}>
+          <AddPaymentForm
+            defaultProjectId={id}
+            onPaymentAdded={handlePaymentAdded}
+            onCancel={() => setShowAddPayment(false)}
+          />
+        </div>
+      )}
       <div className="data-table-wrapper">
         <table className="data-table">
           <thead>
@@ -123,10 +191,10 @@ export default function ProjectDetailsPage() {
           <tbody>
             {payments.length === 0 ? (
               <tr>
-                <td colSpan={4} className="data-table-empty">No payments recorded. Add payments from the Payments page.</td>
+                <td colSpan={4} className="data-table-empty">No payments recorded yet.</td>
               </tr>
             ) : (
-              payments.map((pay) => (
+              paymentsPagination.pageItems.map((pay) => (
                 <tr key={pay.id}>
                   <td>{formatDate(pay.payment_date)}</td>
                   <td>{paymentMethodLabel(pay.payment_method)}</td>
@@ -138,8 +206,30 @@ export default function ProjectDetailsPage() {
           </tbody>
         </table>
       </div>
+      <TablePagination
+        page={paymentsPagination.page}
+        totalPages={paymentsPagination.totalPages}
+        totalCount={paymentsPagination.totalCount}
+        onPageChange={paymentsPagination.setPage}
+        show={paymentsPagination.showPagination}
+      />
 
-      <h3 className="section-heading">Expenses</h3>
+      <div className="section-header-row">
+        <h3 className="section-heading">Expenses</h3>
+        {!showAddExpense && (
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => setShowAddExpense(true)}>
+            <Plus size={15} />
+            Add Expense
+          </button>
+        )}
+      </div>
+      {showAddExpense && (
+        <AddExpenseForm
+          defaultProjectId={id}
+          onExpenseAdded={handleExpenseAdded}
+          onCancel={() => setShowAddExpense(false)}
+        />
+      )}
       <div className="data-table-wrapper">
         <table className="data-table">
           <thead>
@@ -156,7 +246,7 @@ export default function ProjectDetailsPage() {
                 <td colSpan={4} className="data-table-empty">No expenses recorded for this project.</td>
               </tr>
             ) : (
-              expenses.map(exp => (
+              expensesPagination.pageItems.map((exp) => (
                 <tr key={exp.id}>
                   <td>{exp.description || '—'}</td>
                   <td>{expenseTypeLabel(exp.expense_type)}</td>
@@ -168,6 +258,40 @@ export default function ProjectDetailsPage() {
           </tbody>
         </table>
       </div>
+      <TablePagination
+        page={expensesPagination.page}
+        totalPages={expensesPagination.totalPages}
+        totalCount={expensesPagination.totalCount}
+        onPageChange={expensesPagination.setPage}
+        show={expensesPagination.showPagination}
+      />
+
+      <div className="section-header-row">
+        <h3 className="section-heading">Milestones</h3>
+        {!showAddMilestone && !editingMilestone && (
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => setShowAddMilestone(true)}>
+            <Plus size={15} />
+            Add Milestone
+          </button>
+        )}
+      </div>
+      {(showAddMilestone || editingMilestone) && (
+        <div className="form-card" style={{ marginBottom: 16 }}>
+          <AddMilestoneForm
+            milestone={editingMilestone}
+            defaultProjectId={id}
+            onMilestoneAdded={handleMilestoneSaved}
+            onCancel={() => { setShowAddMilestone(false); setEditingMilestone(null); }}
+          />
+        </div>
+      )}
+      <MilestoneTable
+        projectId={id}
+        hideProjectColumn
+        refreshKey={refresh}
+        onEdit={(m) => { setEditingMilestone(m); setShowAddMilestone(false); }}
+        onDeleted={() => setRefresh((n) => n + 1)}
+      />
 
       {editing && (
         <UpdateProjectForm

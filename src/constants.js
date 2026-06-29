@@ -1,3 +1,5 @@
+export const TABLE_PAGE_SIZE = 50;
+
 export const EXPENSE_TYPES = [
   { value: 'material', label: 'Material' },
   { value: 'labour', label: 'Labour payment' },
@@ -17,6 +19,24 @@ export const PAYMENT_METHODS = [
 
 export function paymentMethodLabel(value) {
   return PAYMENT_METHODS.find((t) => t.value === value)?.label ?? '—';
+}
+
+export const LOAN_REPAYMENT_METHODS = [
+  { value: 'cash', label: 'Cash' },
+  { value: 'online_transfer', label: 'Online transfer' },
+];
+
+export function loanRepaymentMethodLabel(value) {
+  return LOAN_REPAYMENT_METHODS.find((t) => t.value === value)?.label ?? '—';
+}
+
+export const INTEREST_PERIODS = [
+  { value: 'year', label: '% per year' },
+  { value: 'month', label: '% per month' },
+];
+
+export function interestPeriodLabel(value) {
+  return INTEREST_PERIODS.find((t) => t.value === value)?.label ?? '% per year';
 }
 
 export const CLIENT_TYPES = [

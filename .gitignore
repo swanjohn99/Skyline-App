@@ -1,6 +1,7 @@
 # Env / secrets
 .env
 api/.env
+scripts/backup/backup.conf
 
 logs
 *.log

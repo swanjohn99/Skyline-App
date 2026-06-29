@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Building2, LockKeyhole, Mail } from 'lucide-react';
+import { LockKeyhole, Mail } from 'lucide-react';
 import { requestPasswordReset } from '../api/auth';
 import { useAuth } from '../context/auth';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function LoginPage() {
   const { signIn, signUp } = useAuth();
@@ -14,6 +15,8 @@ export default function LoginPage() {
 
   const isSignUp = mode === 'signup';
   const isForgot = mode === 'forgot';
+
+  usePageTitle(isForgot ? 'Reset password' : isSignUp ? 'Sign up' : 'Sign in');
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -31,7 +34,13 @@ export default function LoginPage() {
         await signIn(email, password);
       }
     } catch (err) {
-      setError(err.message || 'Something went wrong.');
+      if (err.code === 'login_blocked_elsewhere' || err.status === 409) {
+        setError(
+          'This account is already signed in from another location. Sign out there first, or wait up to 24 hours for the session to expire.'
+        );
+      } else {
+        setError(err.message || 'Something went wrong.');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -53,10 +62,6 @@ export default function LoginPage() {
   return (
     <main className="login-page">
       <section className="login-card">
-        <div className="login-brand-icon">
-          <Building2 size={28} strokeWidth={2.25} />
-        </div>
-        <p className="login-eyebrow">Skyline Constructions</p>
         <h1>{title}</h1>
         <p className="login-subtitle">{subtitle}</p>
 

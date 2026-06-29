@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../lib/db.php';
 require_once __DIR__ . '/../lib/http.php';
 require_once __DIR__ . '/../lib/session.php';
+require_once __DIR__ . '/../lib/uploads.php';
 
 const PERSONAL_COMPANY_NAME = 'Freelancer / Self employed';
 
@@ -27,7 +28,8 @@ function profile_get(): void
 {
     $user = require_user();
     $stmt = db()->prepare(
-        'SELECT p.*, c.name AS company_name
+        'SELECT p.*, c.name AS company_name, c.logo_path AS company_logo_path,
+                c.favicon_path AS company_favicon_path
          FROM profiles p
          LEFT JOIN companies c ON c.id = p.company_id
          WHERE p.id = ? LIMIT 1'
@@ -46,8 +48,14 @@ function profile_get(): void
         $row = $stmt->fetch();
     }
 
-    $companies = $row['company_name'] !== null ? ['name' => $row['company_name']] : null;
-    unset($row['company_name']);
+    $companies = $row['company_name'] !== null
+        ? [
+            'name'         => $row['company_name'],
+            'logo_path'    => $row['company_logo_path'] ?? null,
+            'favicon_path' => $row['company_favicon_path'] ?? null,
+        ]
+        : null;
+    unset($row['company_name'], $row['company_logo_path'], $row['company_favicon_path']);
     $row['is_active'] = (bool) $row['is_active'];
     $row['companies'] = $companies;
     json_response($row);
@@ -143,6 +151,18 @@ function route_companies(string $method, array $segments): void
     }
     if ($method === 'POST' && $action === 'join') {
         companies_join();
+    }
+    if ($method === 'POST' && $action === 'logo') {
+        companies_upload_logo();
+    }
+    if ($method === 'DELETE' && $action === 'logo') {
+        companies_delete_logo();
+    }
+    if ($method === 'POST' && $action === 'favicon') {
+        companies_upload_favicon();
+    }
+    if ($method === 'DELETE' && $action === 'favicon') {
+        companies_delete_favicon();
     }
     json_error('Not found', 404);
 }
@@ -256,6 +276,56 @@ function companies_join(): void
     )->execute([$user['id'], $companyId, $fullName ?: null, $user['email']]);
 
     json_response(['ok' => true, 'pending' => true], 201);
+}
+
+function companies_upload_logo(): void
+{
+    $user = require_user();
+    $companyId = require_company_owner($user);
+
+    if (empty($_FILES['logo'])) {
+        json_error('Logo file is required', 422);
+    }
+
+    $logoPath = save_company_logo_upload($companyId, $_FILES['logo']);
+    db()->prepare('UPDATE companies SET logo_path = ? WHERE id = ?')->execute([$logoPath, $companyId]);
+
+    json_response(['logo_path' => $logoPath]);
+}
+
+function companies_delete_logo(): void
+{
+    $user = require_user();
+    $companyId = require_company_owner($user);
+
+    delete_company_logo_files($companyId);
+    db()->prepare('UPDATE companies SET logo_path = NULL WHERE id = ?')->execute([$companyId]);
+    json_response(['ok' => true]);
+}
+
+function companies_upload_favicon(): void
+{
+    $user = require_user();
+    $companyId = require_company_owner($user);
+
+    if (empty($_FILES['favicon'])) {
+        json_error('Favicon file is required', 422);
+    }
+
+    $faviconPath = save_company_favicon_upload($companyId, $_FILES['favicon']);
+    db()->prepare('UPDATE companies SET favicon_path = ? WHERE id = ?')->execute([$faviconPath, $companyId]);
+
+    json_response(['favicon_path' => $faviconPath]);
+}
+
+function companies_delete_favicon(): void
+{
+    $user = require_user();
+    $companyId = require_company_owner($user);
+
+    delete_company_favicon_files($companyId);
+    db()->prepare('UPDATE companies SET favicon_path = NULL WHERE id = ?')->execute([$companyId]);
+    json_response(['ok' => true]);
 }
 
 // GET /members and PATCH /members/{id}

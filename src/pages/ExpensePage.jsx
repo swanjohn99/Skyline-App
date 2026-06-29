@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import AddExpenseForm from '../components/AddExpenseForm';
 import ExpenseTable from '../components/ExpenseTable';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function ExpensePage() {
+  usePageTitle('Expenses');
   const [refresh, setRefresh] = useState(0);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editing, setEditing] = useState(null);

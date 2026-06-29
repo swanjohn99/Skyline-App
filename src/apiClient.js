@@ -2,6 +2,8 @@
 // automatically via credentials: 'include'. Non-2xx responses throw an Error
 // whose message is the API's { message } payload (matches existing catch usage).
 
+import { notifyUnauthorized } from './authSessionHandler';
+
 const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 const VIEW_COMPANY_KEY = 'skyline_view_company_id';
 
@@ -68,7 +70,44 @@ async function request(method, path, body) {
 
   if (!res.ok) {
     const message = (data && data.message) || `Request failed (${res.status})`;
-    throw new Error(message);
+    const err = new Error(message);
+    err.status = res.status;
+    err.code = data?.code;
+    if (res.status === 401 && !finalPath.startsWith('/auth/session') && !finalPath.startsWith('/auth/logout')) {
+      notifyUnauthorized();
+    }
+    throw err;
+  }
+
+  return data;
+}
+
+async function postForm(path, formData) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    credentials: 'include',
+    body: formData,
+  });
+
+  let data = null;
+  const text = await res.text();
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = null;
+    }
+  }
+
+  if (!res.ok) {
+    const message = (data && data.message) || `Request failed (${res.status})`;
+    const err = new Error(message);
+    err.status = res.status;
+    err.code = data?.code;
+    if (res.status === 401 && !path.startsWith('/auth/session') && !path.startsWith('/auth/logout')) {
+      notifyUnauthorized();
+    }
+    throw err;
   }
 
   return data;
@@ -77,6 +116,7 @@ async function request(method, path, body) {
 export const api = {
   get: (path) => request('GET', path),
   post: (path, body) => request('POST', path, body),
+  postForm: (path, formData) => postForm(path, formData),
   patch: (path, body) => request('PATCH', path, body),
   del: (path) => request('DELETE', path),
 };

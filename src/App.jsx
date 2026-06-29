@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import {
-  LayoutDashboard, FolderKanban, Receipt, Wallet, Users, Contact, Building2, LogOut, Shield,
-  PanelLeftClose, PanelLeftOpen,
+  LayoutDashboard, FolderKanban, Receipt, Wallet, Users, Contact, LogOut, Shield,
+  PanelLeftClose, PanelLeftOpen, Landmark, Building2, Flag,
 } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import ProjectPage from './pages/ProjectPage';
@@ -10,6 +10,9 @@ import ExpensePage from './pages/ExpensePage';
 import ProjectDetailsPage from './pages/ProjectDetailsPage';
 import PaymentsPage from './pages/Payments';
 import ClientsPage from './pages/ClientsPage';
+import ClientDetailsPage from './pages/ClientDetailsPage';
+import LoansPage from './pages/LoansPage';
+import MilestonesPage from './pages/MilestonesPage';
 import TeamPage from './pages/TeamPage';
 import AdminPage from './pages/AdminPage';
 import LoginPage from './pages/LoginPage';
@@ -18,8 +21,11 @@ import PendingApprovalPage from './pages/PendingApprovalPage';
 import SetupPage from './pages/SetupPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import { useAuth } from './context/auth';
+import { usePageTitle } from './hooks/usePageTitle';
+import { useCompanyFavicon } from './hooks/useCompanyFavicon';
 import { getViewCompanyId, setViewCompanyId } from './apiClient';
 import { listAdminCompanies } from './api/admin';
+import { companyLogoUrl } from './utils/companyLogo';
 import './App.css';
 
 // Derived from Vite's base ('/' in dev, '/app/' in prod) without trailing slash.
@@ -28,7 +34,9 @@ const ROUTER_BASENAME = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/projects', label: 'Projects', icon: FolderKanban },
+  { to: '/milestones', label: 'Milestones', icon: Flag },
   { to: '/clients', label: 'Clients', icon: Contact },
+  { to: '/loans', label: 'Loans', icon: Landmark },
   { to: '/expenses', label: 'Expenses', icon: Receipt },
   { to: '/payments', label: 'Payments', icon: Wallet },
 ];
@@ -37,8 +45,10 @@ const SIDEBAR_COLLAPSED_KEY = 'skyline-sidebar-collapsed';
 
 function AppShell() {
   const {
-    canManageTeam, isSuperAdmin, profile, user, companyName, signOut,
+    canManageTeam, isSuperAdmin, profile, user, companyName, companyLogoPath,
+    companyFaviconPath, signOut,
   } = useAuth();
+  useCompanyFavicon(companyFaviconPath);
   const [adminCompanies, setAdminCompanies] = useState([]);
   const [viewCompanyId, setViewCompanyIdState] = useState(() => getViewCompanyId());
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -80,6 +90,13 @@ function AppShell() {
   ];
 
   const viewingCompany = adminCompanies.find((c) => c.id === viewCompanyId);
+  const displayName = isSuperAdmin && viewingCompany
+    ? viewingCompany.name
+    : companyName;
+  const displayLogoPath = isSuperAdmin && viewingCompany
+    ? viewingCompany.logo_path
+    : companyLogoPath;
+  const displayLogoUrl = companyLogoUrl(displayLogoPath);
 
   return (
     <div className={`app-shell${sidebarCollapsed ? ' app-shell--sidebar-collapsed' : ''}`}>
@@ -87,13 +104,14 @@ function AppShell() {
         <div className="sidebar-header">
           <div className="sidebar-brand">
             <div className="sidebar-brand-icon">
-              <Building2 size={22} strokeWidth={2.25} />
+              {displayLogoUrl ? (
+                <img src={displayLogoUrl} alt="" className="sidebar-brand-logo" />
+              ) : (
+                <Building2 size={22} strokeWidth={2.25} />
+              )}
             </div>
             <div className="sidebar-brand-text">
-              <span className="sidebar-brand-name">
-                {isSuperAdmin && viewingCompany ? viewingCompany.name : (companyName || 'Skyline')}
-              </span>
-              <span className="sidebar-brand-tagline">Constructions</span>
+              <span className="sidebar-brand-name">{displayName || 'Workspace'}</span>
             </div>
           </div>
           <button
@@ -150,6 +168,9 @@ function AppShell() {
           <Route path="/projects" element={<ProjectPage />} />
           <Route path="/projects/:id" element={<ProjectDetailsPage />} />
           <Route path="/clients" element={<ClientsPage />} />
+          <Route path="/clients/:id" element={<ClientDetailsPage />} />
+          <Route path="/loans" element={<LoansPage />} />
+          <Route path="/milestones" element={<MilestonesPage />} />
           <Route path="/expenses" element={<ExpensePage />} />
           <Route path="/payments" element={<PaymentsPage />} />
           <Route path="/setup" element={<SetupPage />} />
@@ -158,6 +179,16 @@ function AppShell() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+    </div>
+  );
+}
+
+function AuthLoading() {
+  usePageTitle('Loading');
+  return (
+    <div className="auth-loading">
+      <div className="loading-spinner" />
+      Loading…
     </div>
   );
 }
@@ -171,12 +202,7 @@ function App() {
   }
 
   if (loading) {
-    return (
-      <div className="auth-loading">
-        <div className="loading-spinner" />
-        Loading Skyline…
-      </div>
-    );
+    return <AuthLoading />;
   }
 
   if (!session) {

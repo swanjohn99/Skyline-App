@@ -4,6 +4,10 @@ export async function listClients() {
   return (await api.get('/clients')) ?? [];
 }
 
+export async function getClient(id) {
+  return api.get(`/clients/${id}`);
+}
+
 export async function createClient(client) {
   return api.post('/clients', client);
 }

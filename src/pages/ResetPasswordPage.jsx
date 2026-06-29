@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Building2, LockKeyhole } from 'lucide-react';
+import { LockKeyhole } from 'lucide-react';
 import { resetPassword } from '../api/auth';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 function getToken() {
   return new URLSearchParams(window.location.search).get('token') || '';
@@ -13,6 +14,7 @@ function appHome() {
 }
 
 export default function ResetPasswordPage() {
+  usePageTitle('Reset password');
   const [token] = useState(getToken);
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -43,11 +45,6 @@ export default function ResetPasswordPage() {
   return (
     <main className="login-page">
       <section className="login-card">
-        <div className="login-brand-icon">
-          <Building2 size={28} strokeWidth={2.25} />
-        </div>
-        <p className="login-eyebrow">Skyline Constructions</p>
-
         {done ? (
           <>
             <h1>Password updated</h1>

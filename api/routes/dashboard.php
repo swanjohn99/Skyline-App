@@ -41,7 +41,7 @@ function route_dashboard(string $method, array $segments): void
     $projectsStmt->execute($scope['params']);
 
     $expensesStmt = $pdo->prepare(
-        "SELECT amount, expense_date FROM expenses WHERE {$scope['sql']}"
+        "SELECT amount, expense_date, expense_type FROM expenses WHERE {$scope['sql']}"
     );
     $expensesStmt->execute($scope['params']);
 

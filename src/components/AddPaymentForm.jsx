@@ -3,6 +3,7 @@ import { listOpenProjects, listProjects } from '../api/projects';
 import { createPayment, updatePayment } from '../api/payments';
 import { PAYMENT_METHODS } from '../constants';
 import { todayInputValue, toDateInputValue } from '../utils/format';
+import DateInput from './DateInput';
 
 const EMPTY_PAYMENT = {
   project_id: '',
@@ -131,8 +132,7 @@ export default function AddPaymentForm({ payment, onPaymentAdded, defaultProject
 
         <div className="form-field">
           <label>Payment Date</label>
-          <input
-            type="date"
+          <DateInput
             required
             value={form.payment_date}
             onChange={(e) => setForm({ ...form, payment_date: e.target.value })}

@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Building2, Clock, LogOut, RefreshCw } from 'lucide-react';
+import { Clock, LogOut, RefreshCw } from 'lucide-react';
 import { useAuth } from '../context/auth';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function PendingApprovalPage() {
+  usePageTitle('Pending approval');
   const { user, companyName, refreshProfile, signOut } = useAuth();
   const [checking, setChecking] = useState(false);
 
@@ -18,10 +20,9 @@ export default function PendingApprovalPage() {
   return (
     <main className="login-page">
       <section className="login-card">
-        <div className="login-brand-icon">
+        <div className="login-brand-icon login-brand-icon--muted">
           <Clock size={28} strokeWidth={2.25} />
         </div>
-        <p className="login-eyebrow">Skyline Constructions</p>
         <h1>Awaiting approval</h1>
         <p className="login-subtitle">
           Your request to join{' '}
@@ -30,8 +31,7 @@ export default function PendingApprovalPage() {
         </p>
 
         <div className="login-form">
-          <p className="login-message" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Building2 size={16} />
+          <p className="login-message">
             {companyName || 'Selected company'} — signed in as {user?.email}
           </p>
 

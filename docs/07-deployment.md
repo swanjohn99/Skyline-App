@@ -103,6 +103,8 @@ location /app/ {
 - [ ] Verify forgot-password email arrives and reset works
 - [ ] Seed the super admin (see bottom of `api/schema.sql`)
 - [ ] Confirm `.env` and `api/.env` are git-ignored
+- [ ] Configure daily DB + file backups (see [09-backups-and-restore.md](./09-backups-and-restore.md))
+- [ ] Run test restore on staging once
 
 ---
 
@@ -110,3 +112,4 @@ location /app/ {
 
 - Local development: [06-local-setup.md](./06-local-setup.md)
 - Architecture: [02-architecture.md](./02-architecture.md)
+- Backups: [09-backups-and-restore.md](./09-backups-and-restore.md)

@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { Building2, LogOut, Search } from 'lucide-react';
 import { createCompany, joinCompany, searchCompanies, skipCompanySetup } from '../api/profiles';
 import { useAuth } from '../context/auth';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function OnboardingPage({ allowSkip = true, onDone }) {
+  usePageTitle(allowSkip ? 'Get started' : 'Setup');
   const { user, refreshProfile, signOut } = useAuth();
   const [mode, setMode] = useState('join'); // 'join' | 'create'
   const [fullName, setFullName] = useState('');
@@ -116,7 +118,7 @@ export default function OnboardingPage({ allowSkip = true, onDone }) {
                   type="text"
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
-                  placeholder="e.g. Skyline Constructions"
+                  placeholder="e.g. Acme Builders"
                   required
                 />
               </div>

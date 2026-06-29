@@ -25,6 +25,26 @@ export function skipCompanySetup() {
   return api.post('/profile/skip');
 }
 
+export async function uploadCompanyLogo(file) {
+  const formData = new FormData();
+  formData.append('logo', file);
+  return api.postForm('/companies/logo', formData);
+}
+
+export async function deleteCompanyLogo() {
+  return api.del('/companies/logo');
+}
+
+export async function uploadCompanyFavicon(file) {
+  const formData = new FormData();
+  formData.append('favicon', file);
+  return api.postForm('/companies/favicon', formData);
+}
+
+export async function deleteCompanyFavicon() {
+  return api.del('/companies/favicon');
+}
+
 export async function listMembers() {
   return (await api.get('/members')) ?? [];
 }

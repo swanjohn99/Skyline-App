@@ -3,8 +3,10 @@ import { Plus } from 'lucide-react';
 import AddProjectForm from '../components/AddProjectForm';
 import ProjectTable from '../components/ProjectTable';
 import UpdateProjectForm from '../components/UpdateProjectForm';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function ProjectPage() {
+  usePageTitle('Projects');
   const [refresh, setRefresh] = useState(0);
   const [editingProject, setEditingProject] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);

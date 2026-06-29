@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { createProject } from '../api/projects';
 import { listClients } from '../api/clients';
 import { PROJECT_STATUSES, COMPLETED_STATUSES, clientDisplayName } from '../constants';
+import DateInput from './DateInput';
 import './AddProjectForm.css';
 
 const INITIAL_FORM = {
@@ -10,7 +11,7 @@ const INITIAL_FORM = {
   client_name: '',
   location: '',
   work_description: '',
-  total_quoted_amount: 0,
+  total_quoted_amount: '',
   status: 'site visit requested',
   start_date: '',
   end_date: '',
@@ -32,7 +33,7 @@ function AddProjectForm({ onProjectAdded, onCancel }) {
     const { name, value, type } = event.target;
     setForm((prev) => ({
       ...prev,
-      [name]: type === 'number' ? Number(value) : value,
+      [name]: type === 'number' ? (value === '' ? '' : Number(value)) : value,
     }));
     setSuccess(false);
     setError(null);
@@ -66,7 +67,7 @@ function AddProjectForm({ onProjectAdded, onCancel }) {
         client_name: form.client_name,
         location: form.location,
         work_description: form.work_description,
-        total_quoted_amount: form.total_quoted_amount,
+        total_quoted_amount: form.total_quoted_amount === '' ? null : Number(form.total_quoted_amount),
         status: form.status,
         completion_percent: completionPercent,
         start_date: form.start_date || null,
@@ -111,7 +112,7 @@ function AddProjectForm({ onProjectAdded, onCancel }) {
           </div>
           <div className="add-project-form-field">
             <label>Total Amount (INR)</label>
-            <input name="total_quoted_amount" type="number" value={form.total_quoted_amount} onChange={handleChange} />
+            <input name="total_quoted_amount" type="number" min="0" step="0.01" value={form.total_quoted_amount} onChange={handleChange} placeholder="Optional" />
           </div>
           <div className="add-project-form-field">
             <label>Status</label>
@@ -121,11 +122,11 @@ function AddProjectForm({ onProjectAdded, onCancel }) {
           </div>
           <div className="add-project-form-field">
             <label>Start Date</label>
-            <input name="start_date" type="date" value={form.start_date} onChange={handleChange} />
+            <DateInput name="start_date" value={form.start_date} onChange={handleChange} />
           </div>
           <div className="add-project-form-field">
             <label>End Date</label>
-            <input name="end_date" type="date" value={form.end_date} onChange={handleChange} />
+            <DateInput name="end_date" value={form.end_date} onChange={handleChange} />
           </div>
           <div className="add-project-form-field" style={{ gridColumn: '1 / -1' }}>
             <label>Work Description</label>

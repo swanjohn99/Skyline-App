@@ -1,12 +1,17 @@
 import { useEffect, useState, useCallback } from 'react';
 import { listMembers, setMemberActive, setMemberRole } from '../api/profiles';
+import CompanyBrandingCard from '../components/CompanyBrandingCard';
 import { useAuth } from '../context/auth';
 import { ROLES } from '../constants';
 import { formatDate } from '../utils/format';
+import { usePagination } from '../hooks/usePagination';
+import TablePagination from '../components/TablePagination';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const ROLE_OPTIONS = [ROLES.MEMBER, ROLES.OWNER];
 
 export default function TeamPage() {
+  usePageTitle('Team');
   const { user, isSuperAdmin, companyName } = useAuth();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,6 +25,10 @@ export default function TeamPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const {
+    page, setPage, pageItems, totalPages, totalCount, showPagination,
+  } = usePagination(members);
 
   async function handleToggleActive(member) {
     try {
@@ -52,11 +61,14 @@ export default function TeamPage() {
 
       {error && <p className="form-message form-message--error">{error}</p>}
 
+      <CompanyBrandingCard />
+
       {loading ? (
         <div className="loading-state"><div className="loading-spinner" />Loading members…</div>
       ) : (
-        <div className="data-table-wrapper">
-          <table className="data-table">
+        <>
+          <div className="data-table-wrapper">
+            <table className="data-table">
             <thead>
               <tr>
                 <th>Name</th>
@@ -71,7 +83,7 @@ export default function TeamPage() {
               {members.length === 0 ? (
                 <tr><td colSpan={6} className="data-table-empty">No members yet.</td></tr>
               ) : (
-                members.map((m) => {
+                pageItems.map((m) => {
                   const isSelf = m.id === user?.id;
                   const isProtected = m.role === ROLES.SUPER_ADMIN;
                   return (
@@ -118,6 +130,14 @@ export default function TeamPage() {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={page}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          onPageChange={setPage}
+          show={showPagination}
+        />
+        </>
       )}
 
       <p className="page-subtitle" style={{ marginTop: 16 }}>

@@ -2,16 +2,21 @@ import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import { FolderOpen, Layers, TrendingUp, CalendarDays } from 'lucide-react';
 import { getDashboardData } from '../api/dashboard';
+import FinancialBreakdownChart from '../components/FinancialBreakdownChart';
 import { formatCompactCurrency, formatCurrency } from '../utils/format';
 import { CHART_COLORS, MONTH_LABELS } from '../constants';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const sum = (rows, predicate) =>
   rows.filter(predicate).reduce((acc, r) => acc + (Number(r.amount) || 0), 0);
 
 export default function Dashboard() {
+  usePageTitle('Dashboard');
   const [counts, setCounts] = useState({ active: 0, total: 0 });
   const [metrics, setMetrics] = useState({ incomeMonth: 0, expensesMonth: 0, profitMonth: 0, profitYear: 0 });
   const [monthlyData, setMonthlyData] = useState([]);
+  const [allExpenses, setAllExpenses] = useState([]);
+  const [totalIncome, setTotalIncome] = useState(0);
 
   const now = new Date();
   const currentMonthName = now.toLocaleString('default', { month: 'long' });
@@ -35,8 +40,11 @@ export default function Dashboard() {
         const expensesMonth = sum(expenses, (e) => inMonth(e.expense_date));
         const incomeYear = sum(payments, (p) => inYear(p.payment_date));
         const expensesYear = sum(expenses, (e) => inYear(e.expense_date));
+        const allIncome = sum(payments, () => true);
 
         setCounts({ active: activeCount, total: totalCount });
+        setAllExpenses(expenses);
+        setTotalIncome(allIncome);
         setMetrics({
           incomeMonth,
           expensesMonth,
@@ -79,10 +87,16 @@ export default function Dashboard() {
         <MetricCard icon={CalendarDays} iconClass="amber" label="Profit (Year)" value={formatCurrency(metrics.profitYear)} />
       </div>
 
+      <FinancialBreakdownChart
+        expenses={allExpenses}
+        income={totalIncome}
+        title="All projects — spending & profit breakdown"
+      />
+
       <div className="chart-card chart-card--full">
         <h3 className="chart-card-title">Income vs Expenses — {currentYear}</h3>
         <div className="chart-card-body">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height={340} minHeight={280}>
             <BarChart data={monthlyData} barGap={6}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
               <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 13 }} axisLine={false} tickLine={false} />

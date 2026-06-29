@@ -4,6 +4,9 @@ import { Columns3 } from 'lucide-react';
 import { listProjects, deleteProject } from '../api/projects';
 import { formatCurrency, formatDate } from '../utils/format';
 import { statusBadgeClass } from '../constants';
+import { projectPending, hasQuotedTotal } from '../utils/projectFinance';
+import { usePagination } from '../hooks/usePagination';
+import TablePagination from './TablePagination';
 import './ProjectTable.css';
 
 const COLUMN_OPTIONS = [
@@ -12,6 +15,8 @@ const COLUMN_OPTIONS = [
   { key: 'total', label: 'Total' },
   { key: 'received', label: 'Received' },
   { key: 'pending', label: 'Pending' },
+  { key: 'expenses', label: 'Expenses' },
+  { key: 'profit', label: 'Profit' },
   { key: 'dates', label: 'Dates' },
   { key: 'status', label: 'Status' },
 ];
@@ -50,6 +55,10 @@ function ProjectTable({ refreshKey, onEdit, onDeleted }) {
     return () => { active = false; };
   }, [refreshKey]);
 
+  const {
+    page, setPage, pageItems, totalPages, totalCount, showPagination,
+  } = usePagination(projects, undefined, refreshKey);
+
   async function handleDelete(project) {
     if (!window.confirm(`Delete "${project.project_title}"? Expenses and payments for this project will also be removed.`)) {
       return;
@@ -78,6 +87,12 @@ function ProjectTable({ refreshKey, onEdit, onDeleted }) {
   }
 
   const visibleColumnCount = 2 + Object.values(visibleColumns).filter(Boolean).length;
+
+  function profitClass(value) {
+    if (value > 0) return 'profit-positive';
+    if (value < 0) return 'profit-negative';
+    return 'profit-zero';
+  }
 
   return (
     <div className="project-table-container">
@@ -112,6 +127,8 @@ function ProjectTable({ refreshKey, onEdit, onDeleted }) {
               {visibleColumns.total && <th>Total</th>}
               {visibleColumns.received && <th>Received</th>}
               {visibleColumns.pending && <th>Pending</th>}
+              {visibleColumns.expenses && <th>Expenses</th>}
+              {visibleColumns.profit && <th>Profit</th>}
               {visibleColumns.dates && <th>Dates</th>}
               {visibleColumns.status && <th>Status</th>}
               <th>Actions</th>
@@ -123,8 +140,8 @@ function ProjectTable({ refreshKey, onEdit, onDeleted }) {
                 <td colSpan={visibleColumnCount} className="data-table-empty">No projects yet. Add your first project to get started.</td>
               </tr>
             ) : (
-              projects.map((p) => {
-                const pending = (p.total_quoted_amount || 0) - (p.amount_received || 0);
+              pageItems.map((p) => {
+                const pending = projectPending(p);
                 const isCompleted = (p.status ?? '').toLowerCase().trim() === 'completed';
                 return (
                   <tr key={p.id} className={isCompleted ? 'project-row--completed' : undefined}>
@@ -133,16 +150,29 @@ function ProjectTable({ refreshKey, onEdit, onDeleted }) {
                     </td>
                     {visibleColumns.client && <td className="project-client-cell">{p.client_name}</td>}
                     {visibleColumns.location && <td>{p.location || '—'}</td>}
-                    {visibleColumns.total && <td>{formatCurrency(p.total_quoted_amount)}</td>}
+                    {visibleColumns.total && (
+                      <td>{hasQuotedTotal(p.total_quoted_amount) ? formatCurrency(p.total_quoted_amount) : '—'}</td>
+                    )}
                     {visibleColumns.received && <td>{formatCurrency(p.amount_received)}</td>}
                     {visibleColumns.pending && (
-                      <td className={pending > 0 ? 'pending-positive' : 'pending-zero'}>
-                        {formatCurrency(pending)}
+                      <td className={pending != null && pending > 0 ? 'pending-positive' : 'pending-zero'}>
+                        {pending != null ? formatCurrency(pending) : '—'}
+                      </td>
+                    )}
+                    {visibleColumns.expenses && (
+                      <td>{formatCurrency(p.total_expenses)}</td>
+                    )}
+                    {visibleColumns.profit && (
+                      <td className={profitClass(p.profit ?? 0)}>
+                        {formatCurrency(p.profit ?? 0)}
                       </td>
                     )}
                     {visibleColumns.dates && (
                       <td className="project-dates-cell">
-                        {formatDate(p.start_date)} – {formatDate(p.end_date)}
+                        <div className="project-dates-stack">
+                          <span className="project-date-line">{formatDate(p.start_date)}</span>
+                          <span className="project-date-line project-date-line--end">{formatDate(p.end_date)}</span>
+                        </div>
                       </td>
                     )}
                     {visibleColumns.status && (
@@ -170,6 +200,13 @@ function ProjectTable({ refreshKey, onEdit, onDeleted }) {
           </tbody>
         </table>
       </div>
+      <TablePagination
+        page={page}
+        totalPages={totalPages}
+        totalCount={totalCount}
+        onPageChange={setPage}
+        show={showPagination}
+      />
     </div>
   );
 }

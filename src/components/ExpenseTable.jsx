@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { listExpenses, deleteExpense } from '../api/expenses';
 import { formatCurrency, formatDate } from '../utils/format';
 import { expenseTypeLabel } from '../constants';
+import { usePagination } from '../hooks/usePagination';
+import TablePagination from './TablePagination';
 import './ProjectTable.css';
 
 export default function ExpenseTable({ refreshKey, onEdit, onDeleted }) {
@@ -17,6 +19,10 @@ export default function ExpenseTable({ refreshKey, onEdit, onDeleted }) {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [refreshKey]);
+
+  const {
+    page, setPage, pageItems, totalPages, totalCount, showPagination,
+  } = usePagination(expenses, undefined, refreshKey);
 
   async function handleDelete(expense) {
     const label = expense.description || expenseTypeLabel(expense.expense_type);
@@ -63,7 +69,7 @@ export default function ExpenseTable({ refreshKey, onEdit, onDeleted }) {
                 <td colSpan={7} className="data-table-empty">No expenses recorded yet.</td>
               </tr>
             ) : (
-              expenses.map((exp) => (
+              pageItems.map((exp) => (
                 <tr key={exp.id}>
                   <td>{formatDate(exp.expense_date)}</td>
                   <td>{expenseTypeLabel(exp.expense_type)}</td>
@@ -90,6 +96,13 @@ export default function ExpenseTable({ refreshKey, onEdit, onDeleted }) {
           </tbody>
         </table>
       </div>
+      <TablePagination
+        page={page}
+        totalPages={totalPages}
+        totalCount={totalCount}
+        onPageChange={setPage}
+        show={showPagination}
+      />
     </div>
   );
 }

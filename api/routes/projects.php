@@ -16,7 +16,8 @@ const PROJECT_FIELDS = [
 function projects_select_sql(): string
 {
     return 'SELECT p.*,
-            (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE project_id = p.id) AS amount_received_computed
+            (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE project_id = p.id) AS amount_received_computed,
+            (SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE project_id = p.id) AS total_expenses_computed
             FROM projects p';
 }
 
@@ -26,6 +27,14 @@ function project_out(array $row): array
         $row['amount_received'] = (float) $row['amount_received_computed'];
         unset($row['amount_received_computed']);
     }
+    if (isset($row['total_expenses_computed'])) {
+        $row['total_expenses'] = (float) $row['total_expenses_computed'];
+        unset($row['total_expenses_computed']);
+    } else {
+        $row['total_expenses'] = 0.0;
+    }
+    $received = (float) ($row['amount_received'] ?? 0);
+    $row['profit'] = $received - $row['total_expenses'];
     return $row;
 }
 

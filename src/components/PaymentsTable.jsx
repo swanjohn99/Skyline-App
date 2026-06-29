@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { listPayments, deletePayment } from '../api/payments';
 import { formatCurrency, formatDate } from '../utils/format';
 import { paymentMethodLabel } from '../constants';
+import { usePagination } from '../hooks/usePagination';
+import TablePagination from './TablePagination';
 import './ProjectTable.css';
 
 export default function PaymentsTable({ refreshKey, onEdit, onDeleted }) {
@@ -17,6 +19,10 @@ export default function PaymentsTable({ refreshKey, onEdit, onDeleted }) {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [refreshKey]);
+
+  const {
+    page, setPage, pageItems, totalPages, totalCount, showPagination,
+  } = usePagination(payments, undefined, refreshKey);
 
   async function handleDelete(payment) {
     const label = payment.projects?.project_title || formatCurrency(payment.amount);
@@ -63,7 +69,7 @@ export default function PaymentsTable({ refreshKey, onEdit, onDeleted }) {
                 <td colSpan={7} className="data-table-empty">No payments recorded yet.</td>
               </tr>
             ) : (
-              payments.map(p => (
+              pageItems.map(p => (
                 <tr key={p.id}>
                   <td>{formatDate(p.payment_date)}</td>
                   <td>{paymentMethodLabel(p.payment_method)}</td>
@@ -90,6 +96,13 @@ export default function PaymentsTable({ refreshKey, onEdit, onDeleted }) {
           </tbody>
         </table>
       </div>
+      <TablePagination
+        page={page}
+        totalPages={totalPages}
+        totalCount={totalCount}
+        onPageChange={setPage}
+        show={showPagination}
+      />
     </div>
   );
 }

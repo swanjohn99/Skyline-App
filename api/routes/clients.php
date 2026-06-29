@@ -63,6 +63,9 @@ function route_clients(string $method, array $segments): void
     if ($method === 'GET' && $id === null) {
         clients_list($ctx);
     }
+    if ($method === 'GET' && $id !== null) {
+        clients_get($ctx, $id);
+    }
     if ($method === 'POST' && $id === null) {
         clients_create($ctx);
     }
@@ -94,6 +97,29 @@ function clients_list(array $ctx): void
     );
     $stmt->execute($scope['params']);
     json_response(array_map('client_out', $stmt->fetchAll()));
+}
+
+function clients_get(array $ctx, string $id): void
+{
+    require_owned_row($ctx, 'clients', $id);
+    require_once __DIR__ . '/projects.php';
+
+    $stmt = db()->prepare(clients_select_sql() . ' WHERE c.id = ?');
+    $stmt->execute([$id]);
+    $row = $stmt->fetch();
+    if (!$row) {
+        json_error('Not found', 404);
+    }
+
+    $scope = company_scope($ctx, 'p');
+    $projectsStmt = db()->prepare(
+        projects_select_sql() . " WHERE p.client_id = ? AND {$scope['sql']} ORDER BY p.start_date DESC"
+    );
+    $projectsStmt->execute([$id, ...$scope['params']]);
+
+    $client = client_out($row);
+    $client['projects'] = array_map('project_out', $projectsStmt->fetchAll());
+    json_response($client);
 }
 
 function apply_client_type_rules(array $ctx, array $body, ?string $existingAccountId = null): array

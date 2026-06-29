@@ -5,6 +5,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/http.php';
 
+const SESSION_ACTIVE_HOURS = 24;
+
 // Cookie-based PHP session. Same-origin SPA (/app) + API (/api) share it.
 function boot_session(): void
 {
@@ -24,14 +26,101 @@ function boot_session(): void
     session_start();
 }
 
+function client_ip(): string
+{
+    $forwarded = trim((string) ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
+    if ($forwarded !== '') {
+        $parts = explode(',', $forwarded);
+        $first = trim($parts[0]);
+        if ($first !== '') {
+            return $first;
+        }
+    }
+    return (string) ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
+}
+
+function session_is_active(?string $token, ?string $lastSeen): bool
+{
+    if ($token === null || $token === '') {
+        return false;
+    }
+    if ($lastSeen === null || $lastSeen === '') {
+        return false;
+    }
+    $seen = new DateTimeImmutable($lastSeen);
+    $cutoff = new DateTimeImmutable('-' . SESSION_ACTIVE_HOURS . ' hours');
+    return $seen >= $cutoff;
+}
+
+function clear_user_active_session(string $userId): void
+{
+    db()->prepare(
+        'UPDATE users
+         SET active_login_ip = NULL, active_session_token = NULL, session_last_seen = NULL
+         WHERE id = ?'
+    )->execute([$userId]);
+}
+
+function bind_user_session(string $userId, string $ip, string $token): void
+{
+    db()->prepare(
+        'UPDATE users
+         SET active_login_ip = ?, active_session_token = ?, session_last_seen = NOW()
+         WHERE id = ?'
+    )->execute([$ip, $token, $userId]);
+}
+
+function touch_user_session(string $userId): void
+{
+    db()->prepare('UPDATE users SET session_last_seen = NOW() WHERE id = ?')->execute([$userId]);
+}
+
 function login_user(string $userId): void
 {
+    $stmt = db()->prepare(
+        'SELECT active_login_ip, active_session_token, session_last_seen
+         FROM users WHERE id = ? LIMIT 1'
+    );
+    $stmt->execute([$userId]);
+    $row = $stmt->fetch();
+
+    $ip = client_ip();
+    if ($row && session_is_active($row['active_session_token'], $row['session_last_seen'])) {
+        $activeIp = (string) ($row['active_login_ip'] ?? '');
+        if ($activeIp !== '' && $activeIp !== $ip) {
+            json_error(
+                'This account is already signed in from another location. Sign out there first.',
+                409,
+                'login_blocked_elsewhere'
+            );
+        }
+    }
+
+    $token = bin2hex(random_bytes(32));
+    bind_user_session($userId, $ip, $token);
+
     boot_session();
     session_regenerate_id(true);
     $_SESSION['user_id'] = $userId;
+    $_SESSION['session_token'] = $token;
 }
 
 function logout_user(): void
+{
+    boot_session();
+    $userId = $_SESSION['user_id'] ?? null;
+    if ($userId) {
+        clear_user_active_session((string) $userId);
+    }
+    $_SESSION = [];
+    if (ini_get('session.use_cookies')) {
+        $p = session_get_cookie_params();
+        setcookie(session_name(), '', time() - 42000, $p['path'], $p['domain'], $p['secure'], $p['httponly']);
+    }
+    session_destroy();
+}
+
+function invalidate_local_session(): void
 {
     boot_session();
     $_SESSION = [];
@@ -47,13 +136,35 @@ function current_user(): ?array
 {
     boot_session();
     $userId = $_SESSION['user_id'] ?? null;
-    if (!$userId) {
+    $sessionToken = $_SESSION['session_token'] ?? null;
+    if (!$userId || !$sessionToken) {
         return null;
     }
-    $stmt = db()->prepare('SELECT id, email FROM users WHERE id = ? LIMIT 1');
+
+    $stmt = db()->prepare(
+        'SELECT id, email, active_session_token, session_last_seen FROM users WHERE id = ? LIMIT 1'
+    );
     $stmt->execute([$userId]);
     $user = $stmt->fetch();
-    return $user ?: null;
+    if (!$user) {
+        invalidate_local_session();
+        return null;
+    }
+
+    if (!hash_equals((string) $user['active_session_token'], (string) $sessionToken)) {
+        invalidate_local_session();
+        return null;
+    }
+
+    if (!session_is_active($user['active_session_token'], $user['session_last_seen'])) {
+        clear_user_active_session($userId);
+        invalidate_local_session();
+        return null;
+    }
+
+    touch_user_session($userId);
+    unset($user['active_session_token']);
+    return $user;
 }
 
 // 401s when not authenticated; otherwise returns the user row.
@@ -142,8 +253,8 @@ function data_context(bool $write = false): array
     return $ctx;
 }
 
-// SQL fragment + bound params that scope a business table to the caller's
-// company. Super admins get full visibility unless ?company_id= is set.
+// SQL fragment + bound params that scope a business table to the caller's company.
+// Super admins get full visibility unless ?company_id= is set.
 function company_scope(array $ctx, string $alias = ''): array
 {
     $prefix = $alias === '' ? '' : ($alias . '.');

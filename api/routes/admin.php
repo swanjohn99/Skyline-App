@@ -39,11 +39,11 @@ function route_admin(string $method, array $segments): void
 function admin_list_companies(): void
 {
     $stmt = db()->query(
-        'SELECT c.id, c.name, c.owner_id, c.created_at,
+        'SELECT c.id, c.name, c.logo_path, c.owner_id, c.created_at,
                 COUNT(p.id) AS member_count
          FROM companies c
          LEFT JOIN profiles p ON p.company_id = c.id
-         GROUP BY c.id, c.name, c.owner_id, c.created_at
+         GROUP BY c.id, c.name, c.logo_path, c.owner_id, c.created_at
          ORDER BY c.name ASC'
     );
     json_response($stmt->fetchAll());

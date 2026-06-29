@@ -13,9 +13,13 @@ function json_response($data, int $status = 200): void
     exit;
 }
 
-function json_error(string $message, int $status = 400): void
+function json_error(string $message, int $status = 400, ?string $code = null): void
 {
-    json_response(['message' => $message], $status);
+    $payload = ['message' => $message];
+    if ($code !== null) {
+        $payload['code'] = $code;
+    }
+    json_response($payload, $status);
 }
 
 // Parsed JSON body of the current request (empty array when absent/invalid).

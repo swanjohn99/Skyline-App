@@ -3,6 +3,7 @@ import { updateProject } from '../api/projects';
 import { listClients } from '../api/clients';
 import { PROJECT_STATUSES, COMPLETED_STATUSES, clientDisplayName } from '../constants';
 import { toDateInputValue } from '../utils/format';
+import DateInput from './DateInput';
 import './UpdateProjectForm.css';
 
 function projectToForm(project) {
@@ -12,7 +13,7 @@ function projectToForm(project) {
     client_name: project.client_name || '',
     location: project.location || '',
     work_description: project.work_description || '',
-    total_quoted_amount: project.total_quoted_amount || 0,
+    total_quoted_amount: project.total_quoted_amount ?? '',
     status: project.status || 'site visit requested',
     completion_percent: project.completion_percent || 0,
     start_date: project.start_date || '',
@@ -34,7 +35,7 @@ function UpdateProjectForm({ project, onUpdate, onClose }) {
     const { name, value, type } = event.target;
     setForm((prev) => ({
       ...prev,
-      [name]: type === 'number' ? Number(value) : value,
+      [name]: type === 'number' ? (value === '' ? '' : Number(value)) : value,
     }));
   }
 
@@ -66,7 +67,7 @@ function UpdateProjectForm({ project, onUpdate, onClose }) {
         client_name: form.client_name,
         location: form.location,
         work_description: form.work_description,
-        total_quoted_amount: Number(form.total_quoted_amount),
+        total_quoted_amount: form.total_quoted_amount === '' ? null : Number(form.total_quoted_amount),
         status: form.status,
         completion_percent: completionPercent,
         start_date: form.start_date || null,
@@ -149,8 +150,7 @@ function UpdateProjectForm({ project, onUpdate, onClose }) {
           <div className="form-row">
             <div className="form-group half-width">
               <label>Start Date</label>
-              <input
-                type="date"
+              <DateInput
                 name="start_date"
                 value={toDateInputValue(form.start_date)}
                 onChange={handleChange}
@@ -159,8 +159,7 @@ function UpdateProjectForm({ project, onUpdate, onClose }) {
             {COMPLETED_STATUSES.includes(form.status) && (
               <div className="form-group half-width">
                 <label>End Date</label>
-                <input
-                  type="date"
+                <DateInput
                   name="end_date"
                   value={toDateInputValue(form.end_date)}
                   onChange={handleChange}
