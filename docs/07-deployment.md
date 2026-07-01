@@ -30,7 +30,29 @@ Create a dedicated DB user with privileges limited to the `skyline` database.
    - `APP_URL=https://skylineconstructions.in/app`
    - SMTP settings for password-reset emails
 3. Ensure PHP 8.1+ with `pdo_mysql` and `openssl` is enabled.
-4. The included `api/.htaccess` routes `/api/*` to `index.php` and blocks direct access to `.env`, `.sql`, and `config.php` (Apache + mod_rewrite). For Nginx, see the snippet below.
+4. Install PHP dependencies for document generation (PhpWord):
+
+```bash
+cd api && composer install --no-dev
+```
+
+5. Ensure upload directories exist and are writable by PHP:
+   - `api/uploads/document_templates/`
+   - `api/uploads/documents/`
+6. The included `api/.htaccess` routes `/api/*` to `index.php` and blocks direct access to `.env`, `.sql`, and `config.php` (Apache + mod_rewrite). For Nginx, see the snippet below.
+
+### Existing databases (migration)
+
+If upgrading from a prior release, run incremental migrations instead of re-importing `schema.sql`:
+
+```bash
+mysql -u <admin> -p skyline < api/migrations/009_business_expansion.sql
+mysql -u <admin> -p skyline < api/migrations/010_entity_contacts_client.sql
+mysql -u <admin> -p skyline < api/migrations/011_leads_project_title_expense_items.sql
+mysql -u <admin> -p skyline < api/migrations/012_vendor_contacts.sql
+mysql -u <admin> -p skyline < api/migrations/013_vendor_profile.sql
+```
+
 
 ---
 

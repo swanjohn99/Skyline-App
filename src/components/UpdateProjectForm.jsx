@@ -4,6 +4,8 @@ import { listClients } from '../api/clients';
 import { PROJECT_STATUSES, COMPLETED_STATUSES, clientDisplayName } from '../constants';
 import { toDateInputValue } from '../utils/format';
 import DateInput from './DateInput';
+import AmountInput from './AmountInput';
+import EntityContactsTable from './EntityContactsTable';
 import './UpdateProjectForm.css';
 
 function projectToForm(project) {
@@ -171,8 +173,7 @@ function UpdateProjectForm({ project, onUpdate, onClose }) {
           <div className="form-row">
             <div className="form-group half-width">
               <label>Total Quoted Amount (INR)</label>
-              <input
-                type="number"
+              <AmountInput
                 step="0.01"
                 name="total_quoted_amount"
                 value={form.total_quoted_amount}
@@ -192,6 +193,8 @@ function UpdateProjectForm({ project, onUpdate, onClose }) {
             </button>
           </div>
         </form>
+
+        <EntityContactsTable entityType="project" entityId={project.id} />
       </div>
     </div>
   );

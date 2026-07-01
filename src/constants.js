@@ -11,6 +11,24 @@ export function expenseTypeLabel(value) {
   return EXPENSE_TYPES.find((t) => t.value === value)?.label ?? 'Others';
 }
 
+export const VENDOR_CONTACT_TAGS = [
+  { value: 'owner', label: 'Owner' },
+  { value: 'contact_person', label: 'Contact person' },
+  { value: 'other', label: 'Other' },
+];
+
+export function vendorContactTagLabel(tag, tagLabel) {
+  if (tag === 'other' && tagLabel) return tagLabel;
+  return VENDOR_CONTACT_TAGS.find((t) => t.value === tag)?.label ?? tag ?? '—';
+}
+
+export function vendorWebsiteHref(website) {
+  const value = (website || '').trim();
+  if (!value) return null;
+  if (/^https?:\/\//i.test(value)) return value;
+  return `https://${value}`;
+}
+
 export const PAYMENT_METHODS = [
   { value: 'cash', label: 'Cash' },
   { value: 'online_transfer', label: 'Online transfer' },
@@ -116,3 +134,43 @@ export const MONTH_LABELS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
+
+export const LEAD_STATUSES = [
+  { value: 'new_inquiry', label: 'New inquiry' },
+  { value: 'photos_received', label: 'Photos received' },
+  { value: 'site_visit_scheduled', label: 'Site visit scheduled' },
+  { value: 'quotation_pending', label: 'Quotation pending' },
+  { value: 'quotation_sent', label: 'Quotation sent' },
+  { value: 'converted', label: 'Converted' },
+  { value: 'lost', label: 'Lost' },
+];
+
+export function leadStatusLabel(value) {
+  return LEAD_STATUSES.find((s) => s.value === value)?.label ?? value;
+}
+
+export const TASK_TYPES = [
+  { value: 'site_visit', label: 'Site visit' },
+  { value: 'payment_followup', label: 'Payment follow-up' },
+  { value: 'client_call', label: 'Client call' },
+];
+
+export function taskTypeLabel(value) {
+  return TASK_TYPES.find((t) => t.value === value)?.label ?? value;
+}
+
+export const PROJECT_TYPE_CATEGORIES = ['Retrofitting', 'Waterproofing', 'NDT Testing'];
+
+const LEAD_BADGE_MAP = {
+  new_inquiry: 'status-badge--site-visit-requested',
+  photos_received: 'status-badge--quotation',
+  site_visit_scheduled: 'status-badge--site-visit-done',
+  quotation_pending: 'status-badge--quotation',
+  quotation_sent: 'status-badge--quotation',
+  converted: 'status-badge--work-completed',
+  lost: 'status-badge--rejected',
+};
+
+export function leadStatusBadgeClass(status) {
+  return `status-badge ${LEAD_BADGE_MAP[status] ?? 'status-badge--default'}`;
+}

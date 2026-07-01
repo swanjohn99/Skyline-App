@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import {
-  LayoutDashboard, FolderKanban, Receipt, Wallet, Users, Contact, LogOut, Shield,
-  PanelLeftClose, PanelLeftOpen, Landmark, Building2, Flag,
+  LogOut, PanelLeftClose, PanelLeftOpen, Building2,
 } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import ProjectPage from './pages/ProjectPage';
@@ -12,14 +11,23 @@ import PaymentsPage from './pages/Payments';
 import ClientsPage from './pages/ClientsPage';
 import ClientDetailsPage from './pages/ClientDetailsPage';
 import LoansPage from './pages/LoansPage';
+import LoanLendersPage from './pages/LoanLendersPage';
 import MilestonesPage from './pages/MilestonesPage';
 import TeamPage from './pages/TeamPage';
 import AdminPage from './pages/AdminPage';
 import LoginPage from './pages/LoginPage';
 import OnboardingPage from './pages/OnboardingPage';
 import PendingApprovalPage from './pages/PendingApprovalPage';
+import LeadsPage from './pages/LeadsPage';
+import LeadDetailsPage from './pages/LeadDetailsPage';
+import ProcurementPage from './pages/ProcurementPage';
+import ProcurementVendorsPage from './pages/ProcurementVendorsPage';
+import CatalogSettingsPage from './pages/CatalogSettingsPage';
+import CalendarPage from './pages/CalendarPage';
+import AuditLogPage from './pages/AuditLogPage';
 import SetupPage from './pages/SetupPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import SidebarNav from './components/SidebarNav';
 import { useAuth } from './context/auth';
 import { usePageTitle } from './hooks/usePageTitle';
 import { useCompanyFavicon } from './hooks/useCompanyFavicon';
@@ -28,24 +36,12 @@ import { listAdminCompanies } from './api/admin';
 import { companyLogoUrl } from './utils/companyLogo';
 import './App.css';
 
-// Derived from Vite's base ('/' in dev, '/app/' in prod) without trailing slash.
 const ROUTER_BASENAME = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
-
-const NAV_ITEMS = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/projects', label: 'Projects', icon: FolderKanban },
-  { to: '/milestones', label: 'Milestones', icon: Flag },
-  { to: '/clients', label: 'Clients', icon: Contact },
-  { to: '/loans', label: 'Loans', icon: Landmark },
-  { to: '/expenses', label: 'Expenses', icon: Receipt },
-  { to: '/payments', label: 'Payments', icon: Wallet },
-];
-
 const SIDEBAR_COLLAPSED_KEY = 'skyline-sidebar-collapsed';
 
 function AppShell() {
   const {
-    canManageTeam, isSuperAdmin, profile, user, companyName, companyLogoPath,
+    canManageTeam, isOwner, isSuperAdmin, profile, user, companyName, companyLogoPath,
     companyFaviconPath, signOut,
   } = useAuth();
   useCompanyFavicon(companyFaviconPath);
@@ -82,12 +78,6 @@ function AppShell() {
     setViewCompanyIdState(value);
     window.location.reload();
   }
-
-  const navItems = [
-    ...NAV_ITEMS,
-    ...(canManageTeam ? [{ to: '/team', label: 'Team', icon: Users }] : []),
-    ...(isSuperAdmin ? [{ to: '/admin', label: 'Admin', icon: Shield }] : []),
-  ];
 
   const viewingCompany = adminCompanies.find((c) => c.id === viewCompanyId);
   const displayName = isSuperAdmin && viewingCompany
@@ -138,33 +128,34 @@ function AppShell() {
         )}
 
         <nav className="sidebar-nav">
-          {navItems.map(({ to, label, icon: Icon, end }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              title={label}
-              className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-            >
-              <Icon size={18} strokeWidth={2} />
-              <span className="nav-link-label">{label}</span>
-            </NavLink>
-          ))}
+          <SidebarNav
+            collapsed={sidebarCollapsed}
+            isOwner={isOwner}
+            canManageTeam={canManageTeam}
+            isSuperAdmin={isSuperAdmin}
+          />
+          <div className="sidebar-footer">
+            <p className="sidebar-user" title={user?.email}>{user?.email}</p>
+            <p className="sidebar-role">{profile?.role?.replace('_', ' ')}</p>
+            <button type="button" className="sign-out-button" onClick={signOut} title="Sign out">
+              <LogOut size={16} />
+              <span className="sign-out-label">Sign out</span>
+            </button>
+          </div>
         </nav>
-
-        <div className="sidebar-footer">
-          <p className="sidebar-user" title={user?.email}>{user?.email}</p>
-          <p className="sidebar-role">{profile?.role?.replace('_', ' ')}</p>
-          <button type="button" className="sign-out-button" onClick={signOut} title="Sign out">
-            <LogOut size={16} />
-            <span className="sign-out-label">Sign out</span>
-          </button>
-        </div>
       </aside>
 
       <main className="main-content">
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/leads" element={<LeadsPage />} />
+          <Route path="/leads/:id" element={<LeadDetailsPage />} />
+          <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/procurement/vendors" element={<ProcurementVendorsPage />} />
+          <Route path="/procurement" element={<ProcurementPage />} />
+          <Route path="/loan-lenders" element={<LoanLendersPage />} />
+          <Route path="/catalog" element={isOwner ? <CatalogSettingsPage /> : <Navigate to="/" replace />} />
+          <Route path="/audit-log" element={isOwner ? <AuditLogPage /> : <Navigate to="/" replace />} />
           <Route path="/projects" element={<ProjectPage />} />
           <Route path="/projects/:id" element={<ProjectDetailsPage />} />
           <Route path="/clients" element={<ClientsPage />} />
@@ -196,7 +187,6 @@ function AuthLoading() {
 function App() {
   const { session, loading, needsOnboarding, isPendingApproval } = useAuth();
 
-  // Password reset is reachable while logged out, before the auth gate.
   if (window.location.pathname.replace(/\/$/, '').endsWith('/reset')) {
     return <ResetPasswordPage />;
   }

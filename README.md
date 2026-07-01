@@ -49,8 +49,10 @@ Full project documentation for rebuilding from scratch:
 | [06-local-setup](./docs/06-local-setup.md) | Developer environment |
 | [07-deployment](./docs/07-deployment.md) | Production build and hosting |
 | [08-replication-checklist](./docs/08-replication-checklist.md) | Step-by-step rebuild guide |
+| [09-backups-and-restore](./docs/09-backups-and-restore.md) | Daily backups and restore |
+| [AI-SYSTEM-OVERVIEW](./docs/AI-SYSTEM-OVERVIEW.md) | **Module map for AI agents** |
 
----
+**For AI agents:** start with [docs/AI-SYSTEM-OVERVIEW.md](./docs/AI-SYSTEM-OVERVIEW.md).
 
 ## Scripts
 

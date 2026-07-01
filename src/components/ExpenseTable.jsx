@@ -4,12 +4,27 @@ import { formatCurrency, formatDate } from '../utils/format';
 import { expenseTypeLabel } from '../constants';
 import { usePagination } from '../hooks/usePagination';
 import TablePagination from './TablePagination';
+import ExpenseItemsModal from './ExpenseItemsModal';
 import './ProjectTable.css';
+import './UpdateProjectForm.css';
+
+function ExpenseTypeCell({ expense, onShowItems }) {
+  const hasItems = expense.expense_type === 'material' && (expense.items?.length > 0);
+  if (hasItems) {
+    return (
+      <button type="button" className="link-button" onClick={() => onShowItems(expense)}>
+        {expenseTypeLabel(expense.expense_type)}
+      </button>
+    );
+  }
+  return expenseTypeLabel(expense.expense_type);
+}
 
 export default function ExpenseTable({ refreshKey, onEdit, onDeleted }) {
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
+  const [detailExpense, setDetailExpense] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -72,7 +87,7 @@ export default function ExpenseTable({ refreshKey, onEdit, onDeleted }) {
               pageItems.map((exp) => (
                 <tr key={exp.id}>
                   <td>{formatDate(exp.expense_date)}</td>
-                  <td>{expenseTypeLabel(exp.expense_type)}</td>
+                  <td><ExpenseTypeCell expense={exp} onShowItems={setDetailExpense} /></td>
                   <td>{exp.projects?.project_title || '—'}</td>
                   <td>{exp.projects?.client_name || '—'}</td>
                   <td>{exp.description || '—'}</td>
@@ -103,6 +118,7 @@ export default function ExpenseTable({ refreshKey, onEdit, onDeleted }) {
         onPageChange={setPage}
         show={showPagination}
       />
+      <ExpenseItemsModal expense={detailExpense} onClose={() => setDetailExpense(null)} />
     </div>
   );
 }

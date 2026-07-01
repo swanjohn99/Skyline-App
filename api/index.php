@@ -69,6 +69,54 @@ switch ($resource) {
         require __DIR__ . '/routes/milestones.php';
         route_milestones($method, $segments);
         break;
+    case 'leads':
+        require __DIR__ . '/routes/leads.php';
+        route_leads($method, $segments);
+        break;
+    case 'entity-contacts':
+        require __DIR__ . '/routes/entity_contacts.php';
+        route_entity_contacts($method, $segments);
+        break;
+    case 'entity-project-types':
+        require __DIR__ . '/routes/project_types.php';
+        route_entity_project_types($method, $segments);
+        break;
+    case 'project-types':
+        require __DIR__ . '/routes/project_types.php';
+        route_project_types($method, $segments);
+        break;
+    case 'vendors':
+        require __DIR__ . '/routes/procurement.php';
+        route_vendors($method, $segments);
+        break;
+    case 'chemicals':
+        require __DIR__ . '/routes/procurement.php';
+        route_chemicals($method, $segments);
+        break;
+    case 'vendor-pricing':
+        require __DIR__ . '/routes/procurement.php';
+        route_vendor_pricing($method, $segments);
+        break;
+    case 'tasks':
+        require __DIR__ . '/routes/tasks.php';
+        route_tasks($method, $segments);
+        break;
+    case 'warranties':
+        require __DIR__ . '/routes/tasks.php';
+        route_warranties($method, $segments);
+        break;
+    case 'document-templates':
+        require __DIR__ . '/routes/documents.php';
+        route_document_templates($method, $segments);
+        break;
+    case 'documents':
+        require __DIR__ . '/routes/documents.php';
+        route_documents($method, $segments);
+        break;
+    case 'audit-logs':
+        require __DIR__ . '/routes/audit_logs.php';
+        route_audit_logs($method, $segments);
+        break;
     case 'lenders':
         require __DIR__ . '/routes/lenders.php';
         route_lenders($method, $segments);

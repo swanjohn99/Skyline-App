@@ -4,6 +4,7 @@ import { createPayment, updatePayment } from '../api/payments';
 import { PAYMENT_METHODS } from '../constants';
 import { todayInputValue, toDateInputValue } from '../utils/format';
 import DateInput from './DateInput';
+import AmountInput from './AmountInput';
 
 const EMPTY_PAYMENT = {
   project_id: '',
@@ -121,9 +122,9 @@ export default function AddPaymentForm({ payment, onPaymentAdded, defaultProject
 
         <div className="form-field">
           <label>Amount (INR)</label>
-          <input
-            type="number"
+          <AmountInput
             required
+            step="0.01"
             placeholder="0.00"
             value={form.amount}
             onChange={(e) => setForm({ ...form, amount: e.target.value })}

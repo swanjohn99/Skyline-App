@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react';
 import { createProject } from '../api/projects';
 import { listClients } from '../api/clients';
+import { setEntityProjectTypes } from '../api/projectTypes';
 import { PROJECT_STATUSES, COMPLETED_STATUSES, clientDisplayName } from '../constants';
 import DateInput from './DateInput';
+import PocDraftSection, { saveDraftContacts } from './PocDraftSection';
+import ProjectTypesDraftPicker from './ProjectTypesDraftPicker';
+import AmountInput from './AmountInput';
 import './AddProjectForm.css';
 
 const INITIAL_FORM = {
@@ -24,6 +28,8 @@ function AddProjectForm({ onProjectAdded, onCancel }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [pocDraftRows, setPocDraftRows] = useState([]);
+  const [projectTypeIds, setProjectTypeIds] = useState([]);
 
   useEffect(() => {
     listClients().then(setClients).catch(() => setClients([]));
@@ -61,7 +67,7 @@ function AddProjectForm({ onProjectAdded, onCancel }) {
       : form.completion_percent;
 
     try {
-      await createProject({
+      const created = await createProject({
         project_title: form.project_title,
         client_id: form.client_id || null,
         client_name: form.client_name,
@@ -73,7 +79,17 @@ function AddProjectForm({ onProjectAdded, onCancel }) {
         start_date: form.start_date || null,
         end_date: form.end_date || null,
       });
+      if (created?.id) {
+        if (pocDraftRows.length) {
+          await saveDraftContacts('project', created.id, pocDraftRows);
+        }
+        if (projectTypeIds.length) {
+          await setEntityProjectTypes('project', created.id, projectTypeIds);
+        }
+      }
       setForm(INITIAL_FORM);
+      setPocDraftRows([]);
+      setProjectTypeIds([]);
       setSuccess(true);
       onProjectAdded?.();
     } catch (insertError) {
@@ -112,7 +128,7 @@ function AddProjectForm({ onProjectAdded, onCancel }) {
           </div>
           <div className="add-project-form-field">
             <label>Total Amount (INR)</label>
-            <input name="total_quoted_amount" type="number" min="0" step="0.01" value={form.total_quoted_amount} onChange={handleChange} placeholder="Optional" />
+            <AmountInput name="total_quoted_amount" step="0.01" value={form.total_quoted_amount} onChange={handleChange} placeholder="Optional" />
           </div>
           <div className="add-project-form-field">
             <label>Status</label>
@@ -132,7 +148,14 @@ function AddProjectForm({ onProjectAdded, onCancel }) {
             <label>Work Description</label>
             <textarea name="work_description" value={form.work_description} onChange={handleChange} />
           </div>
+
+          <ProjectTypesDraftPicker
+            selectedIds={projectTypeIds}
+            onChange={setProjectTypeIds}
+          />
         </div>
+
+        <PocDraftSection onRowsChange={setPocDraftRows} />
 
         <div className="form-actions">
           <button type="submit" disabled={submitting} className="btn btn-primary">

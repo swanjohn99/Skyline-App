@@ -39,6 +39,8 @@ function client_out(array $row): array
             'phone'    => $row['account_phone'] ?? null,
             'email'    => $row['account_email'] ?? null,
             'location' => $row['account_location'] ?? null,
+            'address'  => $row['account_address'] ?? null,
+            'notes'    => $row['account_notes'] ?? null,
         ];
     } else {
         $row['customer_account'] = null;
@@ -48,7 +50,9 @@ function client_out(array $row): array
         $row['account_name'],
         $row['account_phone'],
         $row['account_email'],
-        $row['account_location']
+        $row['account_location'],
+        $row['account_address'],
+        $row['account_notes']
     );
 
     return $row;
@@ -84,7 +88,9 @@ function clients_select_sql(): string
                    a.name AS account_name,
                    a.phone AS account_phone,
                    a.email AS account_email,
-                   a.location AS account_location
+                   a.location AS account_location,
+                   a.address AS account_address,
+                   a.notes AS account_notes
             FROM clients c
             LEFT JOIN customer_accounts a ON a.id = c.customer_account_id';
 }

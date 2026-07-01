@@ -50,6 +50,10 @@ Full setup: [06-local-setup.md](./06-local-setup.md)
 | [06-local-setup.md](./06-local-setup.md) | Developer environment and run commands |
 | [07-deployment.md](./07-deployment.md) | Production build and hosting |
 | [08-replication-checklist.md](./08-replication-checklist.md) | Step-by-step rebuild order |
+| [09-backups-and-restore.md](./09-backups-and-restore.md) | Daily backups and restore |
+| [AI-SYSTEM-OVERVIEW.md](./AI-SYSTEM-OVERVIEW.md) | **Module map for AI agents** |
+
+**For AI agents:** start with [AI-SYSTEM-OVERVIEW.md](./AI-SYSTEM-OVERVIEW.md) (current PHP/MariaDB system). Older docs may reference Supabase.
 
 ---
 

@@ -141,9 +141,11 @@ export default function ClientsPage() {
                             ? c.tags.map((t) => <span key={t} className="tag-chip">{t}</span>)
                             : '—'}
                         </td>
-                        <td className="data-table-actions">
-                          <button type="button" className="btn-edit" onClick={() => setEditing(c)}>Edit</button>
-                          <button type="button" className="btn-edit btn-edit--danger" onClick={() => handleDelete(c)}>Delete</button>
+                        <td>
+                          <div className="table-actions-stack">
+                            <button type="button" className="btn-edit" onClick={() => setEditing(c)}>Edit</button>
+                            <button type="button" className="btn-edit btn-edit--danger" onClick={() => handleDelete(c)}>Delete</button>
+                          </div>
                         </td>
                       </tr>
                     ))

@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../lib/db.php';
 require_once __DIR__ . '/../lib/http.php';
 require_once __DIR__ . '/../lib/session.php';
+require_once __DIR__ . '/../lib/audit.php';
 
 const PAYMENT_METHODS = ['cash', 'online_transfer', 'cheque'];
 
@@ -68,6 +69,13 @@ function payments_by_project(array $ctx, string $projectId): void
 function payments_create(array $ctx): void
 {
     $fields = require_fields(['project_id', 'amount', 'payment_date']);
+    $amount = (float) $fields['amount'];
+    if ($amount < 0) {
+        json_error('Amount cannot be negative', 422);
+    }
+    if ($amount <= 0) {
+        json_error('Amount must be greater than zero', 422);
+    }
     require_owned_row($ctx, 'projects', (string) $fields['project_id']);
     $companyId = row_company_id('projects', (string) $fields['project_id']);
     $paymentMethod = normalize_payment_method(body_field('payment_method'));
@@ -75,7 +83,8 @@ function payments_create(array $ctx): void
     $comments = $comments === null || trim((string) $comments) === '' ? null : trim((string) $comments);
 
     $id = uuid4();
-    db()->prepare(
+    $pdo = db();
+    $pdo->prepare(
         'INSERT INTO payments (id, company_id, project_id, payment_method, amount, payment_date, comments)
          VALUES (?, ?, ?, ?, ?, ?, ?)'
     )->execute([
@@ -83,10 +92,11 @@ function payments_create(array $ctx): void
         $companyId,
         $fields['project_id'],
         $paymentMethod,
-        $fields['amount'],
+        $amount,
         $fields['payment_date'],
         $comments,
     ]);
+    log_audit_action($pdo, $ctx, 'payments', $id, 'INSERT', null, ['amount' => $fields['amount']]);
     json_response(['id' => $id], 201);
 }
 
@@ -110,8 +120,15 @@ function payments_update(array $ctx, string $id): void
         $params[] = normalize_payment_method($body['payment_method']);
     }
     if (array_key_exists('amount', $body)) {
+        $amount = (float) $body['amount'];
+        if ($amount < 0) {
+            json_error('Amount cannot be negative', 422);
+        }
+        if ($amount <= 0) {
+            json_error('Amount must be greater than zero', 422);
+        }
         $sets[] = 'amount = ?';
-        $params[] = $body['amount'];
+        $params[] = $amount;
     }
     if (array_key_exists('payment_date', $body)) {
         $sets[] = 'payment_date = ?';
@@ -128,14 +145,26 @@ function payments_update(array $ctx, string $id): void
     }
 
     $params[] = $id;
-    db()->prepare('UPDATE payments SET ' . implode(', ', $sets) . ' WHERE id = ?')->execute($params);
+    $pdo = db();
+    $before = $pdo->prepare('SELECT * FROM payments WHERE id = ?');
+    $before->execute([$id]);
+    $beforeRow = $before->fetch();
+    $pdo->prepare('UPDATE payments SET ' . implode(', ', $sets) . ' WHERE id = ?')->execute($params);
+    $after = $pdo->prepare('SELECT * FROM payments WHERE id = ?');
+    $after->execute([$id]);
+    log_audit_action($pdo, $ctx, 'payments', $id, 'UPDATE', $beforeRow, $after->fetch());
     json_response(['ok' => true]);
 }
 
 function payments_delete(array $ctx, string $id): void
 {
     require_owned_row($ctx, 'payments', $id);
-    db()->prepare('DELETE FROM payments WHERE id = ?')->execute([$id]);
+    $pdo = db();
+    $before = $pdo->prepare('SELECT * FROM payments WHERE id = ?');
+    $before->execute([$id]);
+    $beforeRow = $before->fetch();
+    $pdo->prepare('DELETE FROM payments WHERE id = ?')->execute([$id]);
+    log_audit_action($pdo, $ctx, 'payments', $id, 'DELETE', $beforeRow, null);
     json_response(['ok' => true]);
 }
 

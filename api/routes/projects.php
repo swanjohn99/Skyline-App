@@ -5,10 +5,11 @@ declare(strict_types=1);
 require_once __DIR__ . '/../lib/db.php';
 require_once __DIR__ . '/../lib/http.php';
 require_once __DIR__ . '/../lib/session.php';
+require_once __DIR__ . '/../lib/audit.php';
 
 const CLOSED_STATUSES = ['completed', 'rejected'];
 const PROJECT_FIELDS = [
-    'client_id', 'project_title', 'client_name', 'location', 'work_description',
+    'client_id', 'lead_id', 'project_title', 'client_name', 'location', 'work_description',
     'total_quoted_amount', 'status', 'completion_percent',
     'start_date', 'end_date',
 ];
@@ -129,6 +130,9 @@ function projects_create(array $ctx): void
 function projects_update(array $ctx, string $id): void
 {
     require_owned_row($ctx, 'projects', $id);
+    $before = db()->prepare('SELECT * FROM projects WHERE id = ?');
+    $before->execute([$id]);
+    $beforeRow = $before->fetch();
     $body = json_body();
 
     $sets = [];
@@ -143,7 +147,11 @@ function projects_update(array $ctx, string $id): void
         json_error('Nothing to update', 422);
     }
     $params[] = $id;
-    db()->prepare('UPDATE projects SET ' . implode(', ', $sets) . ' WHERE id = ?')->execute($params);
+    $pdo = db();
+    $pdo->prepare('UPDATE projects SET ' . implode(', ', $sets) . ' WHERE id = ?')->execute($params);
+    $after = $pdo->prepare('SELECT * FROM projects WHERE id = ?');
+    $after->execute([$id]);
+    log_audit_action($pdo, $ctx, 'projects', $id, 'UPDATE', $beforeRow, $after->fetch());
     json_response(['ok' => true]);
 }
 

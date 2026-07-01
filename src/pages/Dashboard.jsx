@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
-import { FolderOpen, Layers, TrendingUp, CalendarDays } from 'lucide-react';
+import { FolderOpen, Layers, TrendingUp, CalendarDays, CheckSquare } from 'lucide-react';
 import { getDashboardData } from '../api/dashboard';
+import { getLeadFunnel } from '../api/leads';
+import { listTasks } from '../api/tasks';
 import FinancialBreakdownChart from '../components/FinancialBreakdownChart';
 import { formatCompactCurrency, formatCurrency } from '../utils/format';
-import { CHART_COLORS, MONTH_LABELS } from '../constants';
+import { CHART_COLORS, MONTH_LABELS, LEAD_STATUSES } from '../constants';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { Link } from 'react-router-dom';
 
 const sum = (rows, predicate) =>
   rows.filter(predicate).reduce((acc, r) => acc + (Number(r.amount) || 0), 0);
@@ -17,6 +20,8 @@ export default function Dashboard() {
   const [monthlyData, setMonthlyData] = useState([]);
   const [allExpenses, setAllExpenses] = useState([]);
   const [totalIncome, setTotalIncome] = useState(0);
+  const [leadFunnel, setLeadFunnel] = useState(null);
+  const [todayTasks, setTodayTasks] = useState([]);
 
   const now = new Date();
   const currentMonthName = now.toLocaleString('default', { month: 'long' });
@@ -62,6 +67,14 @@ export default function Dashboard() {
           if (d && d.getFullYear() === currentYear) months[d.getMonth()].Expenses += Number(e.amount) || 0;
         }
         setMonthlyData(months);
+
+        const today = now.toISOString().slice(0, 10);
+        const [funnel, tasks] = await Promise.all([
+          getLeadFunnel().catch(() => null),
+          listTasks({ from: today, to: today }).catch(() => []),
+        ]);
+        setLeadFunnel(funnel);
+        setTodayTasks(tasks.filter((t) => !t.is_completed));
       } catch (err) {
         console.error('Dashboard load failed:', err);
       }
@@ -92,6 +105,44 @@ export default function Dashboard() {
         income={totalIncome}
         title="All projects — spending & profit breakdown"
       />
+
+      <div className="dashboard-widgets">
+        {leadFunnel && (
+          <div className="chart-card">
+            <div className="section-header-row">
+              <h3 className="chart-card-title">Lead funnel</h3>
+              <Link to="/leads" className="btn btn-secondary btn-sm">View leads</Link>
+            </div>
+            <div className="funnel-grid">
+              {LEAD_STATUSES.filter((s) => s.value !== 'converted' && s.value !== 'lost').map(({ value, label }) => (
+                <div key={value} className="funnel-item">
+                  <span className="funnel-item-count">{leadFunnel[value] ?? 0}</span>
+                  <span className="funnel-item-label">{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="chart-card">
+          <div className="section-header-row">
+            <h3 className="chart-card-title">Today&apos;s tasks</h3>
+            <Link to="/calendar" className="btn btn-secondary btn-sm">Calendar</Link>
+          </div>
+          {todayTasks.length === 0 ? (
+            <p className="data-table-empty" style={{ padding: '1rem 0' }}>No open tasks due today.</p>
+          ) : (
+            <ul className="task-list-compact">
+              {todayTasks.slice(0, 8).map((t) => (
+                <li key={t.id}>
+                  <CheckSquare size={14} />
+                  <span>{t.title || t.task_type}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
 
       <div className="chart-card chart-card--full">
         <h3 className="chart-card-title">Income vs Expenses — {currentYear}</h3>

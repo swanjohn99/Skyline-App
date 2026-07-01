@@ -1,17 +1,23 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Pencil, Plus } from 'lucide-react';
+import { ArrowLeft, Pencil, Plus, FileText, Shield } from 'lucide-react';
 import { getProject } from '../api/projects';
 import { listExpensesByProject } from '../api/expenses';
 import { listPaymentsByProject } from '../api/payments';
+import { listWarranties, createWarranty } from '../api/tasks';
+import { listGeneratedDocuments, generateDocument, documentDownloadUrl } from '../api/documents';
 import UpdateProjectForm from '../components/UpdateProjectForm';
 import AddPaymentForm from '../components/AddPaymentForm';
 import AddExpenseForm from '../components/AddExpenseForm';
 import AddMilestoneForm from '../components/AddMilestoneForm';
 import MilestoneTable from '../components/MilestoneTable';
+import EntityContactsTable from '../components/EntityContactsTable';
 import FinancialBreakdownChart from '../components/FinancialBreakdownChart';
 import TablePagination from '../components/TablePagination';
-import { formatCurrency, formatDate } from '../utils/format';
+import DateInput from '../components/DateInput';
+import { formatCurrency, formatDate, todayInputValue } from '../utils/format';
+import ExpenseItemsModal from '../components/ExpenseItemsModal';
+import '../components/UpdateProjectForm.css';
 import { statusBadgeClass, expenseTypeLabel, paymentMethodLabel } from '../constants';
 import { projectPending, hasQuotedTotal } from '../utils/projectFinance';
 import { usePagination } from '../hooks/usePagination';
@@ -28,11 +34,20 @@ export default function ProjectDetailsPage() {
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showAddMilestone, setShowAddMilestone] = useState(false);
   const [editingMilestone, setEditingMilestone] = useState(null);
+  const [warranties, setWarranties] = useState([]);
+  const [documents, setDocuments] = useState([]);
+  const [showWarrantyForm, setShowWarrantyForm] = useState(false);
+  const [warrantyForm, setWarrantyForm] = useState({ start_date: todayInputValue(), duration_months: '12', terms: '' });
+  const [docGenerating, setDocGenerating] = useState(null);
+  const [sectionError, setSectionError] = useState('');
+  const [detailExpense, setDetailExpense] = useState(null);
 
   useEffect(() => {
     getProject(id).then(setProject).catch(() => setProject(null));
     listExpensesByProject(id).then(setExpenses).catch(() => setExpenses([]));
     listPaymentsByProject(id).then(setPayments).catch(() => setPayments([]));
+    listWarranties(id).then(setWarranties).catch(() => setWarranties([]));
+    listGeneratedDocuments(id).then(setDocuments).catch(() => setDocuments([]));
   }, [id, refresh]);
 
   const paymentsPagination = usePagination(payments, undefined, refresh);
@@ -58,6 +73,37 @@ export default function ProjectDetailsPage() {
     setShowAddMilestone(false);
     setEditingMilestone(null);
     setRefresh((n) => n + 1);
+  }
+
+  async function handleGenerateDocument(templateType) {
+    setDocGenerating(templateType);
+    setSectionError('');
+    try {
+      await generateDocument(id, templateType);
+      setDocuments(await listGeneratedDocuments(id));
+    } catch (err) {
+      setSectionError(err.message);
+    } finally {
+      setDocGenerating(null);
+    }
+  }
+
+  async function handleWarrantySubmit(e) {
+    e.preventDefault();
+    setSectionError('');
+    try {
+      await createWarranty({
+        project_id: id,
+        start_date: warrantyForm.start_date,
+        duration_months: Number(warrantyForm.duration_months),
+        terms: warrantyForm.terms.trim() || null,
+      });
+      setWarranties(await listWarranties(id));
+      setShowWarrantyForm(false);
+      setWarrantyForm({ start_date: todayInputValue(), duration_months: '12', terms: '' });
+    } catch (err) {
+      setSectionError(err.message);
+    }
   }
 
   if (!project) {
@@ -160,6 +206,8 @@ export default function ProjectDetailsPage() {
         title="Spending & profit breakdown"
       />
 
+      <EntityContactsTable entityType="project" entityId={id} />
+
       <div className="section-header-row">
         <h3 className="section-heading">Payments</h3>
         {!showAddPayment && (
@@ -249,7 +297,15 @@ export default function ProjectDetailsPage() {
               expensesPagination.pageItems.map((exp) => (
                 <tr key={exp.id}>
                   <td>{exp.description || '—'}</td>
-                  <td>{expenseTypeLabel(exp.expense_type)}</td>
+                  <td>
+                    {exp.expense_type === 'material' && exp.items?.length > 0 ? (
+                      <button type="button" className="link-button" onClick={() => setDetailExpense(exp)}>
+                        {expenseTypeLabel(exp.expense_type)}
+                      </button>
+                    ) : (
+                      expenseTypeLabel(exp.expense_type)
+                    )}
+                  </td>
                   <td>{formatDate(exp.expense_date)}</td>
                   <td className="data-table-amount">{formatCurrency(exp.amount)}</td>
                 </tr>
@@ -293,6 +349,95 @@ export default function ProjectDetailsPage() {
         onDeleted={() => setRefresh((n) => n + 1)}
       />
 
+      <div className="section-header-row">
+        <h3 className="section-heading"><Shield size={18} style={{ verticalAlign: 'middle', marginRight: 6 }} />Warranties</h3>
+        {!showWarrantyForm && (
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => setShowWarrantyForm(true)}>
+            <Plus size={15} />
+            Add warranty
+          </button>
+        )}
+      </div>
+      {showWarrantyForm && (
+        <form className="form-card" onSubmit={handleWarrantySubmit} style={{ marginBottom: 16 }}>
+          <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+            <div className="form-field">
+              <label>Start date</label>
+              <DateInput required value={warrantyForm.start_date} onChange={(e) => setWarrantyForm({ ...warrantyForm, start_date: e.target.value })} />
+            </div>
+            <div className="form-field">
+              <label>Duration (months)</label>
+              <input type="number" min={1} required value={warrantyForm.duration_months} onChange={(e) => setWarrantyForm({ ...warrantyForm, duration_months: e.target.value })} />
+            </div>
+            <div className="form-field" style={{ gridColumn: '1 / -1' }}>
+              <label>Terms</label>
+              <textarea rows={3} value={warrantyForm.terms} onChange={(e) => setWarrantyForm({ ...warrantyForm, terms: e.target.value })} />
+            </div>
+          </div>
+          <div className="form-actions">
+            <button type="submit" className="btn btn-primary">Save warranty</button>
+            <button type="button" className="btn btn-secondary" onClick={() => setShowWarrantyForm(false)}>Cancel</button>
+          </div>
+        </form>
+      )}
+      <div className="data-table-wrapper">
+        <table className="data-table">
+          <thead>
+            <tr><th>Start</th><th>End</th><th>Duration</th><th>Terms</th></tr>
+          </thead>
+          <tbody>
+            {warranties.length === 0 ? (
+              <tr><td colSpan={4} className="data-table-empty">No warranties recorded.</td></tr>
+            ) : warranties.map((w) => (
+              <tr key={w.id}>
+                <td>{formatDate(w.start_date)}</td>
+                <td>{formatDate(w.end_date)}</td>
+                <td>{w.duration_months} mo</td>
+                <td>{w.terms || '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="section-header-row">
+        <h3 className="section-heading"><FileText size={18} style={{ verticalAlign: 'middle', marginRight: 6 }} />Documents</h3>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {['quotation', 'receipt', 'warranty'].map((type) => (
+            <button
+              key={type}
+              type="button"
+              className="btn btn-secondary btn-sm"
+              disabled={docGenerating === type}
+              onClick={() => handleGenerateDocument(type)}
+            >
+              {docGenerating === type ? 'Generating…' : `Generate ${type}`}
+            </button>
+          ))}
+        </div>
+      </div>
+      {sectionError && <p className="form-message form-message--error">{sectionError}</p>}
+      <div className="data-table-wrapper">
+        <table className="data-table">
+          <thead>
+            <tr><th>Type</th><th>Generated</th><th>Download</th></tr>
+          </thead>
+          <tbody>
+            {documents.length === 0 ? (
+              <tr><td colSpan={3} className="data-table-empty">No documents generated yet.</td></tr>
+            ) : documents.map((d) => (
+              <tr key={d.id}>
+                <td>{d.template_type}</td>
+                <td>{formatDate(d.created_at)}</td>
+                <td>
+                  <a href={documentDownloadUrl(d.file_path)} target="_blank" rel="noreferrer">Download</a>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
       {editing && (
         <UpdateProjectForm
           project={project}
@@ -300,6 +445,8 @@ export default function ProjectDetailsPage() {
           onClose={() => setEditing(false)}
         />
       )}
+
+      <ExpenseItemsModal expense={detailExpense} onClose={() => setDetailExpense(null)} />
     </div>
   );
 }
