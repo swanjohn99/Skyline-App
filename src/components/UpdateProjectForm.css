@@ -167,6 +167,12 @@
   background: var(--color-border);
 }
 
+.skyline-update-form + .project-table-container {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-border);
+}
+
 @media (max-width: 520px) {
   .form-row {
     flex-direction: column;

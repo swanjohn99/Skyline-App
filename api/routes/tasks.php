@@ -12,7 +12,13 @@ const TASK_TYPES = ['site_visit', 'payment_followup', 'client_call'];
 function normalize_task_type(?string $type): string
 {
     $value = trim((string) ($type ?? 'client_call'));
-    if (!in_array($value, TASK_TYPES, true)) {
+    if ($value === '') {
+        json_error('Task type is required', 422);
+    }
+    if (strlen($value) > 64) {
+        json_error('Task type is too long', 422);
+    }
+    if (!preg_match('/^[\w\s\-]+$/u', $value)) {
         json_error('Invalid task type', 422);
     }
     return $value;

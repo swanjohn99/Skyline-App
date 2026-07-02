@@ -51,6 +51,7 @@ mysql -u <admin> -p skyline < api/migrations/010_entity_contacts_client.sql
 mysql -u <admin> -p skyline < api/migrations/011_leads_project_title_expense_items.sql
 mysql -u <admin> -p skyline < api/migrations/012_vendor_contacts.sql
 mysql -u <admin> -p skyline < api/migrations/013_vendor_profile.sql
+mysql -u <admin> -p skyline < api/migrations/014_business_updates.sql
 ```
 
 

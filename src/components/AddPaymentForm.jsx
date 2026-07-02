@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { listOpenProjects, listProjects } from '../api/projects';
 import { createPayment, updatePayment } from '../api/payments';
-import { PAYMENT_METHODS } from '../constants';
+import { PAYMENT_METHODS, projectSelectLabel } from '../constants';
 import { todayInputValue, toDateInputValue } from '../utils/format';
 import DateInput from './DateInput';
 import AmountInput from './AmountInput';
@@ -100,7 +100,7 @@ export default function AddPaymentForm({ payment, onPaymentAdded, defaultProject
               <option value="">Select a project…</option>
               {projects.map(p => (
                 <option key={p.id} value={p.id}>
-                  {p.project_title} — {p.client_name || 'No client'}
+                  {projectSelectLabel(p)}
                 </option>
               ))}
             </select>

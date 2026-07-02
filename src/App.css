@@ -1398,6 +1398,22 @@
   font-size: 0.75rem;
 }
 
+.data-table-actions--compact {
+  width: 1%;
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+.data-table-actions--compact .table-actions-stack {
+  width: fit-content;
+}
+
+.data-table-actions--compact .btn-edit {
+  width: auto;
+  min-width: 5.5rem;
+  padding: 4px 10px;
+}
+
 .table-actions-stack {
   display: flex;
   flex-direction: column;
@@ -1723,6 +1739,32 @@
 
 .calendar-container .rbc-agenda-view table.rbc-agenda-table {
   font-size: 0.875rem;
+}
+
+.calendar-container .rbc-month-view .rbc-row-content {
+  min-height: 88px;
+}
+
+.calendar-container .rbc-month-view .rbc-event {
+  font-size: 0.72rem;
+  padding: 1px 5px;
+}
+
+.calendar-container .rbc-month-view .rbc-event-content {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calendar-container .rbc-month-view .rbc-date-cell {
+  padding: 4px 6px;
+}
+
+.calendar-event-label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .task-row--completed td {

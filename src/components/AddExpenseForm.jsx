@@ -3,7 +3,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { listOpenProjects, listProjects } from '../api/projects';
 import { createExpense, updateExpense } from '../api/expenses';
 import { listVendors, listChemicals, getLatestVendorPrice } from '../api/procurement';
-import { EXPENSE_TYPES } from '../constants';
+import { projectSelectLabel } from '../constants';
 import { todayInputValue, toDateInputValue } from '../utils/format';
 import DateInput from './DateInput';
 import AmountInput from './AmountInput';
@@ -274,7 +274,7 @@ function AddExpenseForm({ expense, onExpenseAdded, defaultProjectId, onCancel })
             >
               <option value="">Select a project…</option>
               {projects.map((p) => (
-                <option key={p.id} value={p.id}>{p.project_title}</option>
+                <option key={p.id} value={p.id}>{projectSelectLabel(p)}</option>
               ))}
             </select>
           </div>

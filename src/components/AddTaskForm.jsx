@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { createTask, updateTask } from '../api/tasks';
 import { listLeads } from '../api/leads';
 import { listProjects } from '../api/projects';
-import { TASK_TYPES } from '../constants';
+import { TASK_TYPES, CUSTOM_TASK_TYPE, projectSelectLabel } from '../constants';
 import DateInput from './DateInput';
 import { todayInputValue } from '../utils/format';
 
@@ -15,6 +15,16 @@ const EMPTY = {
   entity_id: '',
 };
 
+const PRESET_TASK_TYPES = new Set(TASK_TYPES.map((t) => t.value));
+
+function taskTypeState(task) {
+  const taskType = task?.task_type || 'client_call';
+  if (PRESET_TASK_TYPES.has(taskType)) {
+    return { typeMode: taskType, customType: '' };
+  }
+  return { typeMode: CUSTOM_TASK_TYPE, customType: taskType };
+}
+
 function taskToForm(task, defaultDueDate) {
   if (!task) {
     return { ...EMPTY, due_date: defaultDueDate || todayInputValue() };
@@ -24,6 +34,7 @@ function taskToForm(task, defaultDueDate) {
     : task.entity_type === 'project'
       ? 'project'
       : 'none';
+  const { typeMode, customType } = taskTypeState(task);
   return {
     title: task.title || '',
     task_type: task.task_type || 'client_call',
@@ -31,6 +42,8 @@ function taskToForm(task, defaultDueDate) {
     notes: task.notes || '',
     linkType,
     entity_id: task.entity_id || '',
+    typeMode,
+    customType,
   };
 }
 
@@ -41,6 +54,8 @@ export default function AddTaskForm({ task, defaultDueDate, onSaved, onCancel })
   const [projects, setProjects] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  const isCustomType = form.typeMode === CUSTOM_TASK_TYPE;
 
   useEffect(() => {
     setForm(taskToForm(task, defaultDueDate));
@@ -60,17 +75,31 @@ export default function AddTaskForm({ task, defaultDueDate, onSaved, onCancel })
     }));
   }
 
+  function handleTypeModeChange(event) {
+    const typeMode = event.target.value;
+    setForm((prev) => ({
+      ...prev,
+      typeMode,
+      customType: typeMode === CUSTOM_TASK_TYPE ? prev.customType : '',
+    }));
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     if (!form.title.trim()) {
       setError('Title is required.');
       return;
     }
+    const taskType = isCustomType ? form.customType.trim() : form.typeMode;
+    if (!taskType) {
+      setError('Enter a custom task type.');
+      return;
+    }
     setSubmitting(true);
     setError('');
     const payload = {
       title: form.title.trim(),
-      task_type: form.task_type,
+      task_type: taskType,
       due_date: form.due_date,
       notes: form.notes.trim() || null,
     };
@@ -111,12 +140,24 @@ export default function AddTaskForm({ task, defaultDueDate, onSaved, onCancel })
         </div>
         <div className="form-field">
           <label>Type</label>
-          <select name="task_type" value={form.task_type} onChange={handleChange}>
+          <select name="typeMode" value={form.typeMode} onChange={handleTypeModeChange}>
             {TASK_TYPES.map(({ value, label }) => (
               <option key={value} value={value}>{label}</option>
             ))}
+            <option value={CUSTOM_TASK_TYPE}>Custom…</option>
           </select>
         </div>
+        {isCustomType && (
+          <div className="form-field">
+            <label>Custom type</label>
+            <input
+              value={form.customType}
+              onChange={(e) => setForm((prev) => ({ ...prev, customType: e.target.value }))}
+              placeholder="e.g. Supplier follow-up"
+              required
+            />
+          </div>
+        )}
         <div className="form-field">
           <label>Link to</label>
           <select name="linkType" value={form.linkType} onChange={handleChange}>
@@ -142,7 +183,7 @@ export default function AddTaskForm({ task, defaultDueDate, onSaved, onCancel })
             <select name="entity_id" value={form.entity_id} onChange={handleChange}>
               <option value="">Choose project…</option>
               {projects.map((p) => (
-                <option key={p.id} value={p.id}>{p.project_title}</option>
+                <option key={p.id} value={p.id}>{projectSelectLabel(p)}</option>
               ))}
             </select>
           </div>

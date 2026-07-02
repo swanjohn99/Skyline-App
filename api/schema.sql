@@ -194,6 +194,7 @@ CREATE TABLE projects (
     'site visit requested',
     'site visit done',
     'quotation sent',
+    'advance received',
     'work started',
     'work completed',
     'completed',
@@ -464,7 +465,7 @@ CREATE TABLE tasks (
   entity_type  varchar(16)  DEFAULT NULL,
   entity_id    char(36)     DEFAULT NULL,
   title        varchar(255) NOT NULL,
-  task_type    varchar(32)  NOT NULL DEFAULT 'client_call',
+  task_type    varchar(64)  NOT NULL DEFAULT 'client_call',
   due_date     date         NOT NULL,
   is_completed tinyint(1)   NOT NULL DEFAULT 0,
   notes        text         DEFAULT NULL,
@@ -474,7 +475,6 @@ CREATE TABLE tasks (
   KEY idx_tasks_due (company_id, due_date),
   KEY idx_tasks_entity (company_id, entity_type, entity_id),
   CONSTRAINT fk_tasks_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
-  CONSTRAINT chk_tasks_type CHECK (task_type IN ('site_visit', 'payment_followup', 'client_call')),
   CONSTRAINT chk_tasks_entity_type CHECK (entity_type IS NULL OR entity_type IN ('lead', 'project'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

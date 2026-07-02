@@ -202,15 +202,17 @@ export default function CatalogSettingsPage() {
                         <tr key={pt.id}>
                           <td>{pt.name}</td>
                           <td>{pt.is_active ? 'Active' : 'Inactive'}</td>
-                          <td className="data-table-actions">
-                            <button type="button" className="btn-edit" onClick={() => setTypeForm({ ...pt, is_active: Boolean(pt.is_active) })}>
-                              Edit
-                            </button>
-                            {pt.is_active && (
-                              <button type="button" className="btn-edit btn-edit--danger" onClick={() => handleDeactivateType(pt)}>
-                                <Trash2 size={14} /> Deactivate
+                          <td className="data-table-actions data-table-actions--compact">
+                            <div className="table-actions-stack">
+                              <button type="button" className="btn-edit" onClick={() => setTypeForm({ ...pt, is_active: Boolean(pt.is_active) })}>
+                                Edit
                               </button>
-                            )}
+                              {pt.is_active && (
+                                <button type="button" className="btn-edit btn-edit--danger" onClick={() => handleDeactivateType(pt)}>
+                                  <Trash2 size={14} /> Deactivate
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))

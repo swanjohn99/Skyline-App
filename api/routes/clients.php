@@ -119,7 +119,7 @@ function clients_get(array $ctx, string $id): void
 
     $scope = company_scope($ctx, 'p');
     $projectsStmt = db()->prepare(
-        projects_select_sql() . " WHERE p.client_id = ? AND {$scope['sql']} ORDER BY p.start_date DESC"
+        projects_select_sql() . " WHERE p.client_id = ? AND {$scope['sql']} " . projects_list_order_sql()
     );
     $projectsStmt->execute([$id, ...$scope['params']]);
 

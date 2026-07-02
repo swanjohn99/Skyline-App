@@ -8,6 +8,16 @@ require_once __DIR__ . '/../lib/session.php';
 require_once __DIR__ . '/../lib/audit.php';
 
 const CLOSED_STATUSES = ['completed', 'rejected'];
+const PROJECT_STATUS_SORT_ORDER = [
+    'site visit requested',
+    'site visit done',
+    'quotation sent',
+    'advance received',
+    'work started',
+    'work completed',
+    'completed',
+    'rejected',
+];
 const PROJECT_FIELDS = [
     'client_id', 'lead_id', 'project_title', 'client_name', 'location', 'work_description',
     'total_quoted_amount', 'status', 'completion_percent',
@@ -67,11 +77,17 @@ function route_projects(string $method, array $segments): void
     json_error('Not found', 404);
 }
 
+function projects_list_order_sql(): string
+{
+    $quoted = array_map(fn ($s) => db()->quote($s), PROJECT_STATUS_SORT_ORDER);
+    return 'ORDER BY FIELD(p.status, ' . implode(', ', $quoted) . '), p.created_at DESC';
+}
+
 function projects_list(array $ctx): void
 {
     $scope = company_scope($ctx, 'p');
     $stmt = db()->prepare(
-        projects_select_sql() . " WHERE {$scope['sql']} ORDER BY p.start_date DESC"
+        projects_select_sql() . " WHERE {$scope['sql']} " . projects_list_order_sql()
     );
     $stmt->execute($scope['params']);
     json_response(array_map('project_out', $stmt->fetchAll()));

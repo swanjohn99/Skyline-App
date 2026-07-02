@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { listOpenProjects, listProjects } from '../api/projects';
 import { createMilestone, updateMilestone } from '../api/milestones';
+import { projectSelectLabel } from '../constants';
 import { todayInputValue, toDateInputValue } from '../utils/format';
 import DateInput from './DateInput';
 
@@ -101,7 +102,7 @@ export default function AddMilestoneForm({
               <option value="">Select a project…</option>
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.project_title} — {p.client_name || 'No client'}
+                  {projectSelectLabel(p)}
                 </option>
               ))}
             </select>

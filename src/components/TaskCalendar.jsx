@@ -13,6 +13,10 @@ const localizer = dateFnsLocalizer({
   locales,
 });
 
+function CalendarEvent({ event }) {
+  return <span className="calendar-event-label">{event.title}</span>;
+}
+
 export default function TaskCalendar({ events, onSelectEvent, onSelectSlot, onRangeChange }) {
   return (
     <div className="calendar-container" style={{ height: '70vh', minHeight: 480 }}>
@@ -24,9 +28,10 @@ export default function TaskCalendar({ events, onSelectEvent, onSelectSlot, onRa
         allDayAccessor="allDay"
         style={{ height: '100%' }}
         selectable
-        popup
         views={['month', 'week', 'agenda']}
         defaultView="month"
+        tooltipAccessor={(event) => event.title}
+        components={{ event: CalendarEvent }}
         onSelectEvent={onSelectEvent}
         onSelectSlot={onSelectSlot}
         onRangeChange={onRangeChange}

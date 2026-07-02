@@ -80,6 +80,13 @@ export function clientDisplayName(client) {
   return client.name;
 }
 
+export function projectSelectLabel(project) {
+  if (!project) return '';
+  const title = project.project_title || 'Untitled project';
+  const client = project.client_name?.trim();
+  return client ? `${title} — ${client}` : title;
+}
+
 export const ROLES = {
   SUPER_ADMIN: 'super_admin',
   OWNER: 'owner',
@@ -90,6 +97,7 @@ export const PROJECT_STATUSES = [
   'site visit requested',
   'site visit done',
   'quotation sent',
+  'advance received',
   'work started',
   'work completed',
   'completed',
@@ -114,6 +122,7 @@ const STATUS_BADGE_MAP = {
   'site visit requested': 'status-badge--site-visit-requested',
   'site visit done': 'status-badge--site-visit-done',
   'quotation sent': 'status-badge--quotation',
+  'advance received': 'status-badge--advance-received',
   'work started': 'status-badge--work-started',
   'work completed': 'status-badge--work-completed',
   completed: 'status-badge--completed',
@@ -154,6 +163,8 @@ export const TASK_TYPES = [
   { value: 'payment_followup', label: 'Payment follow-up' },
   { value: 'client_call', label: 'Client call' },
 ];
+
+export const CUSTOM_TASK_TYPE = '__custom__';
 
 export function taskTypeLabel(value) {
   return TASK_TYPES.find((t) => t.value === value)?.label ?? value;
