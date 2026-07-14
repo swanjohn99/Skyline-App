@@ -65,11 +65,80 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-sm);
+  table-layout: fixed;
+  width: 100%;
+}
+
+.loans-table-nested th:nth-child(1),
+.loans-table-nested td:nth-child(1) {
+  width: 8.5rem;
+}
+
+.loans-table-nested th:nth-child(2),
+.loans-table-nested td:nth-child(2) {
+  width: 9rem;
+}
+
+.loans-table-nested th:nth-child(4),
+.loans-table-nested td:nth-child(4) {
+  width: 8rem;
+}
+
+.loans-table-nested th:nth-child(5),
+.loans-table-nested td:nth-child(5) {
+  width: 7.5rem;
+}
+
+.loans-table-nested th:nth-child(1),
+.loans-table-nested td:nth-child(1),
+.loans-table-nested th:nth-child(3),
+.loans-table-nested td:nth-child(3),
+.loans-table-nested th:nth-child(4),
+.loans-table-nested td:nth-child(4),
+.loans-table-nested th.data-table-col--actions,
+.loans-table-nested td.data-table-col--actions {
+  text-align: center;
+}
+
+.loans-table-nested .data-table-col--date {
+  text-align: center;
+}
+
+.loans-table-nested .data-table-amount {
+  text-align: center;
 }
 
 .loans-table-nested th,
 .loans-table-nested td {
   padding: 10px 14px;
+}
+
+.loans-table-nested .data-table-col--actions {
+  min-width: 0;
+  width: 1%;
+}
+
+.loans-table-nested .table-actions-stack {
+  flex-wrap: nowrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+.loans-table-nested .table-actions-stack .btn-edit {
+  background: transparent;
+  border: none;
+  min-width: 0;
+  padding: 2px 0;
+  font-size: 0.8rem;
+}
+
+.loans-table-nested .table-actions-stack .btn-edit:hover {
+  background: transparent;
+  text-decoration: underline;
+}
+
+.loans-table-nested .table-actions-stack .btn-edit--danger:hover {
+  background: transparent;
 }
 
 .form-card--nested {

@@ -23,7 +23,7 @@ export default function ExpenseItemsModal({ expense, onClose }) {
         style={{ maxWidth: '720px' }}
       >
         <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 id="expense-items-title" className="modal-title">Material purchase</h2>
+          <h2 id="expense-items-title" className="modal-title">Chemicals purchase</h2>
           <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Close</button>
         </div>
 

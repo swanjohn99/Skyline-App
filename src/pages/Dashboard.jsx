@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
-import { FolderOpen, Layers, TrendingUp, CalendarDays, CheckSquare } from 'lucide-react';
+import { FolderOpen, CheckCircle, Layers, TrendingUp, CalendarDays, CheckSquare, Wallet, Receipt, UserPlus } from 'lucide-react';
 import { getDashboardData } from '../api/dashboard';
 import { getLeadFunnel } from '../api/leads';
 import { listTasks } from '../api/tasks';
@@ -15,7 +15,8 @@ const sum = (rows, predicate) =>
 
 export default function Dashboard() {
   usePageTitle('Dashboard');
-  const [counts, setCounts] = useState({ active: 0, total: 0 });
+  const [counts, setCounts] = useState({ active: 0, completedYear: 0, totalYear: 0, leads: 0 });
+  const [totalPending, setTotalPending] = useState(0);
   const [metrics, setMetrics] = useState({ incomeMonth: 0, expensesMonth: 0, profitMonth: 0, profitYear: 0 });
   const [monthlyData, setMonthlyData] = useState([]);
   const [allExpenses, setAllExpenses] = useState([]);
@@ -33,7 +34,15 @@ export default function Dashboard() {
   useEffect(() => {
     async function load() {
       try {
-        const { activeCount, totalCount, expenses, payments } = await getDashboardData();
+        const {
+          activeCount,
+          completedCountYear,
+          totalCountYear,
+          leadsCount,
+          totalPending: pendingTotal,
+          expenses,
+          payments,
+        } = await getDashboardData();
 
         const firstDayMonth = new Date(currentYear, now.getMonth(), 1);
         const firstDayYear = new Date(currentYear, 0, 1);
@@ -47,7 +56,13 @@ export default function Dashboard() {
         const expensesYear = sum(expenses, (e) => inYear(e.expense_date));
         const allIncome = sum(payments, () => true);
 
-        setCounts({ active: activeCount, total: totalCount });
+        setCounts({
+          active: activeCount,
+          completedYear: completedCountYear,
+          totalYear: totalCountYear,
+          leads: leadsCount,
+        });
+        setTotalPending(pendingTotal);
         setAllExpenses(expenses);
         setTotalIncome(allIncome);
         setMetrics({
@@ -93,10 +108,40 @@ export default function Dashboard() {
         <p className="current-date">{currentDate}</p>
       </header>
 
-      <div className="metrics-grid">
+      <div className="metrics-grid metrics-grid--projects">
         <MetricCard icon={FolderOpen} iconClass="blue" label="Active Projects" value={counts.active} />
-        <MetricCard icon={Layers} iconClass="slate" label="Total Projects" value={counts.total} />
+        <MetricCard
+          icon={CheckCircle}
+          iconClass="green"
+          label={`Projects Completed (${currentYear})`}
+          value={counts.completedYear}
+        />
+        <MetricCard
+          icon={Layers}
+          iconClass="slate"
+          label={`Total Projects (${currentYear})`}
+          value={counts.totalYear}
+        />
+        <MetricCard
+          icon={UserPlus}
+          iconClass="blue"
+          label="Leads"
+          value={counts.leads}
+          to="/leads"
+        />
+      </div>
+
+      <div className="metrics-grid metrics-grid--finance">
         <MetricCard icon={TrendingUp} iconClass="green" label={`Income (${currentMonthName})`} value={formatCurrency(metrics.incomeMonth)} />
+        <MetricCard icon={Receipt} iconClass="slate" label={`Expenses (${currentMonthName})`} value={formatCurrency(metrics.expensesMonth)} />
+        <MetricCard icon={TrendingUp} iconClass="green" label={`Profit (${currentMonthName})`} value={formatCurrency(metrics.profitMonth)} />
+        <MetricCard
+          icon={Wallet}
+          iconClass="amber"
+          label="Pending Payments"
+          value={formatCurrency(totalPending)}
+          to="/pending-payments"
+        />
         <MetricCard icon={CalendarDays} iconClass="amber" label="Profit (Year)" value={formatCurrency(metrics.profitYear)} />
       </div>
 
@@ -167,16 +212,26 @@ export default function Dashboard() {
   );
 }
 
-function MetricCard({ icon: Icon, iconClass, label, value }) {
-  return (
-    <div className="metric-card">
-      <div className={`metric-card-icon metric-card-icon--${iconClass}`}>
-        <Icon size={22} strokeWidth={2} />
-      </div>
-      <div className="metric-card-body">
+function MetricCard({ icon: Icon, iconClass, label, value, to }) {
+  const content = (
+    <>
+      <div className="metric-card-header">
+        <div className={`metric-card-icon metric-card-icon--${iconClass}`}>
+          <Icon size={22} strokeWidth={2} />
+        </div>
         <p className="metric-card-label">{label}</p>
-        <p className="metric-card-value">{value}</p>
       </div>
-    </div>
+      <p className="metric-card-value">{value}</p>
+    </>
   );
+
+  if (to) {
+    return (
+      <Link to={to} className="metric-card metric-card--link">
+        {content}
+      </Link>
+    );
+  }
+
+  return <div className="metric-card">{content}</div>;
 }

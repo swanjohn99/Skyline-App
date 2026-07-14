@@ -84,7 +84,7 @@ export default function LoanLendersPage() {
                 <th>Phone</th>
                 <th>Address</th>
                 <th>Loans</th>
-                <th>Actions</th>
+                <th className="data-table-col--actions">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -97,7 +97,7 @@ export default function LoanLendersPage() {
                     <td>{lender.phone || '—'}</td>
                     <td>{lender.address || '—'}</td>
                     <td>{lender.loan_count ?? 0}</td>
-                    <td>
+                    <td className="data-table-col--actions">
                       <div className="table-actions-stack">
                         <button type="button" className="btn-edit" onClick={() => setEditingLender(lender)}>Edit</button>
                         <button

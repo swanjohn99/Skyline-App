@@ -8,7 +8,6 @@ import { clientTypeLabel, statusBadgeClass, isB2BClient } from '../constants';
 import { usePagination } from '../hooks/usePagination';
 import TablePagination from '../components/TablePagination';
 import { usePageTitle } from '../hooks/usePageTitle';
-import '../components/ProjectTable.css';
 
 function profitClass(value) {
   if (value > 0) return 'profit-positive';
@@ -242,7 +241,7 @@ export default function ClientDetailsPage() {
                     <th>Received</th>
                     <th>Expenses</th>
                     <th>Profit</th>
-                    <th>Dates</th>
+                    <th className="data-table-col--date">Dates</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -264,7 +263,7 @@ export default function ClientDetailsPage() {
                         <td className={`data-table-amount ${profitClass(p.profit ?? 0)}`}>
                           {formatCurrency(p.profit ?? 0)}
                         </td>
-                        <td className="project-dates-cell">
+                        <td className="project-dates-cell data-table-col--date">
                           <div className="project-dates-stack">
                             <span className="project-date-line">{formatDate(p.start_date)}</span>
                             <span className="project-date-line project-date-line--end">{formatDate(p.end_date)}</span>

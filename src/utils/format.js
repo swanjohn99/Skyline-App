@@ -1,6 +1,12 @@
 const inrFormatter = new Intl.NumberFormat('en-IN', {
   style: 'currency',
   currency: 'INR',
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+});
+
+const amountFormatter = new Intl.NumberFormat('en-IN', {
+  minimumFractionDigits: 0,
   maximumFractionDigits: 2,
 });
 
@@ -8,11 +14,16 @@ const compactInrFormatter = new Intl.NumberFormat('en-IN', {
   style: 'currency',
   currency: 'INR',
   notation: 'compact',
+  minimumFractionDigits: 0,
   maximumFractionDigits: 1,
 });
 
 export function formatCurrency(value) {
   return inrFormatter.format(Number(value) || 0);
+}
+
+export function formatAmount(value) {
+  return amountFormatter.format(Number(value) || 0);
 }
 
 export function formatCompactCurrency(value) {

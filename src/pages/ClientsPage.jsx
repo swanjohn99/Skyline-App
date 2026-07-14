@@ -7,7 +7,10 @@ import { clientTypeLabel, isB2BClient } from '../constants';
 import { usePagination } from '../hooks/usePagination';
 import TablePagination from '../components/TablePagination';
 import { usePageTitle } from '../hooks/usePageTitle';
-import '../components/ProjectTable.css';
+
+function clientPhoneList(phone) {
+  return (phone || '').split(',').map((p) => p.trim()).filter(Boolean);
+}
 
 export default function ClientsPage() {
   usePageTitle('Clients');
@@ -115,14 +118,16 @@ export default function ClientsPage() {
                     <th>Location</th>
                     <th>Source</th>
                     <th>Tags</th>
-                    <th>Actions</th>
+                    <th className="data-table-col--actions">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.length === 0 ? (
                     <tr><td colSpan={9} className="data-table-empty">No clients found.</td></tr>
                   ) : (
-                    pageItems.map((c) => (
+                    pageItems.map((c) => {
+                      const phones = clientPhoneList(c.phone);
+                      return (
                       <tr key={c.id}>
                         <td className="project-client-cell">
                           <Link to={`/clients/${c.id}`}>{c.name}</Link>
@@ -132,23 +137,34 @@ export default function ClientsPage() {
                         </td>
                         <td>{clientTypeLabel(c.client_type)}</td>
                         <td>{c.customer_account?.name || '—'}</td>
-                        <td>{c.phone || '—'}</td>
+                        <td>
+                          {phones.length ? (
+                            <div className="project-dates-stack">
+                              {phones.map((p, i) => (
+                                <span key={`${p}-${i}`} className="project-date-line">{p}</span>
+                              ))}
+                            </div>
+                          ) : '—'}
+                        </td>
                         <td>{c.email || '—'}</td>
                         <td>{c.location || '—'}</td>
                         <td>{c.source || '—'}</td>
                         <td>
-                          {(c.tags || []).length
-                            ? c.tags.map((t) => <span key={t} className="tag-chip">{t}</span>)
-                            : '—'}
+                          {(c.tags || []).length ? (
+                            <div className="project-dates-stack">
+                              {c.tags.map((t) => <span key={t} className="tag-chip">{t}</span>)}
+                            </div>
+                          ) : '—'}
                         </td>
-                        <td>
+                        <td className="data-table-col--actions">
                           <div className="table-actions-stack">
                             <button type="button" className="btn-edit" onClick={() => setEditing(c)}>Edit</button>
                             <button type="button" className="btn-edit btn-edit--danger" onClick={() => handleDelete(c)}>Delete</button>
                           </div>
                         </td>
                       </tr>
-                    ))
+                      );
+                    })
                   )}
                 </tbody>
               </table>

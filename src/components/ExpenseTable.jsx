@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
-import { listExpenses, deleteExpense } from '../api/expenses';
+import { listExpenses, listExpensesByProject, deleteExpense } from '../api/expenses';
 import { formatCurrency, formatDate } from '../utils/format';
 import { expenseTypeLabel } from '../constants';
 import { usePagination } from '../hooks/usePagination';
 import TablePagination from './TablePagination';
 import ExpenseItemsModal from './ExpenseItemsModal';
-import './ProjectTable.css';
 import './UpdateProjectForm.css';
 
 function ExpenseTypeCell({ expense, onShowItems }) {
@@ -20,7 +19,13 @@ function ExpenseTypeCell({ expense, onShowItems }) {
   return expenseTypeLabel(expense.expense_type);
 }
 
-export default function ExpenseTable({ refreshKey, onEdit, onDeleted }) {
+export default function ExpenseTable({
+  refreshKey,
+  onEdit,
+  onDeleted,
+  projectId,
+  hideProjectColumn = false,
+}) {
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
@@ -28,12 +33,13 @@ export default function ExpenseTable({ refreshKey, onEdit, onDeleted }) {
 
   useEffect(() => {
     let active = true;
-    listExpenses()
+    const loader = projectId ? listExpensesByProject(projectId) : listExpenses();
+    loader
       .then((data) => { if (active) setExpenses(data); })
       .catch(() => { if (active) setExpenses([]); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [refreshKey]);
+  }, [refreshKey, projectId]);
 
   const {
     page, setPage, pageItems, totalPages, totalCount, showPagination,
@@ -62,39 +68,46 @@ export default function ExpenseTable({ refreshKey, onEdit, onDeleted }) {
     );
   }
 
+  const colSpan = hideProjectColumn ? 5 : 7;
+  const emptyMessage = projectId
+    ? 'No expenses recorded for this project.'
+    : 'No expenses recorded yet.';
+
   return (
     <div>
-      <h3 className="project-table-section-title">Recent Expenses</h3>
+      {!projectId && (
+        <h3 className="project-table-section-title">Recent Expenses</h3>
+      )}
       <div className="data-table-wrapper">
         <table className="data-table">
           <thead>
             <tr>
-              <th>Date</th>
+              <th className="data-table-col--date">Date</th>
               <th>Type</th>
-              <th>Project Title</th>
-              <th>Client Name</th>
+              {!hideProjectColumn && <th>Project Title</th>}
+              {!hideProjectColumn && <th>Client Name</th>}
               <th>Description</th>
               <th>Amount</th>
-              <th>Actions</th>
+              <th className="data-table-col--actions">Actions</th>
             </tr>
           </thead>
           <tbody>
             {expenses.length === 0 ? (
               <tr>
-                <td colSpan={7} className="data-table-empty">No expenses recorded yet.</td>
+                <td colSpan={colSpan} className="data-table-empty">{emptyMessage}</td>
               </tr>
             ) : (
               pageItems.map((exp) => (
                 <tr key={exp.id}>
-                  <td>{formatDate(exp.expense_date)}</td>
+                  <td className="data-table-col--date">{formatDate(exp.expense_date)}</td>
                   <td><ExpenseTypeCell expense={exp} onShowItems={setDetailExpense} /></td>
-                  <td>{exp.projects?.project_title || '—'}</td>
-                  <td>{exp.projects?.client_name || '—'}</td>
+                  {!hideProjectColumn && <td>{exp.projects?.project_title || '—'}</td>}
+                  {!hideProjectColumn && <td>{exp.projects?.client_name || '—'}</td>}
                   <td>{exp.description || '—'}</td>
                   <td className="data-table-amount">{formatCurrency(exp.amount)}</td>
-                  <td>
+                  <td className="data-table-col--actions">
                     <div className="table-actions-stack">
-                      <button type="button" className="btn-edit" onClick={() => onEdit(exp)}>Edit</button>
+                      <button type="button" className="btn-edit" onClick={() => onEdit?.(exp)}>Edit</button>
                       <button
                         type="button"
                         className="btn-edit btn-edit--danger"

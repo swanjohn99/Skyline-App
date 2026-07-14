@@ -5,7 +5,9 @@ declare(strict_types=1);
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/http.php';
 
-const SESSION_ACTIVE_HOURS = 24;
+const SESSION_IDLE_MINUTES = 30;
+const SESSION_REMEMBER_DAYS = 30;
+const SESSION_WARNING_MINUTES = 2;
 
 // Cookie-based PHP session. Same-origin SPA (/app) + API (/api) share it.
 function boot_session(): void
@@ -39,7 +41,22 @@ function client_ip(): string
     return (string) ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
 }
 
-function session_is_active(?string $token, ?string $lastSeen): bool
+function session_remember_active(?string $rememberUntil): bool
+{
+    if ($rememberUntil === null || $rememberUntil === '') {
+        return false;
+    }
+    return (new DateTimeImmutable($rememberUntil)) > new DateTimeImmutable();
+}
+
+function session_idle_window_minutes(?string $rememberUntil): int
+{
+    return session_remember_active($rememberUntil)
+        ? SESSION_REMEMBER_DAYS * 24 * 60
+        : SESSION_IDLE_MINUTES;
+}
+
+function session_is_active(?string $token, ?string $lastSeen, ?string $rememberUntil = null): bool
 {
     if ($token === null || $token === '') {
         return false;
@@ -48,26 +65,56 @@ function session_is_active(?string $token, ?string $lastSeen): bool
         return false;
     }
     $seen = new DateTimeImmutable($lastSeen);
-    $cutoff = new DateTimeImmutable('-' . SESSION_ACTIVE_HOURS . ' hours');
+    $cutoff = (new DateTimeImmutable())->modify('-' . session_idle_window_minutes($rememberUntil) . ' minutes');
     return $seen >= $cutoff;
+}
+
+// ISO-8601 timestamp when the session will expire from inactivity. Null if no session.
+function session_expires_at(?string $lastSeen, ?string $rememberUntil): ?string
+{
+    if ($lastSeen === null || $lastSeen === '') {
+        return null;
+    }
+    $seen = new DateTimeImmutable($lastSeen);
+    return $seen->modify('+' . session_idle_window_minutes($rememberUntil) . ' minutes')->format(DATE_ATOM);
+}
+
+// Metadata for the frontend to drive the idle warning + heartbeat.
+function session_meta(?string $lastSeen, ?string $rememberUntil): array
+{
+    return [
+        'idle_timeout_minutes' => session_idle_window_minutes($rememberUntil),
+        'warning_minutes'      => SESSION_WARNING_MINUTES,
+        'remember'             => session_remember_active($rememberUntil),
+        'expires_at'           => session_expires_at($lastSeen, $rememberUntil),
+    ];
 }
 
 function clear_user_active_session(string $userId): void
 {
     db()->prepare(
         'UPDATE users
-         SET active_login_ip = NULL, active_session_token = NULL, session_last_seen = NULL
+         SET active_login_ip = NULL,
+             active_session_token = NULL,
+             session_last_seen = NULL,
+             session_remember_until = NULL
          WHERE id = ?'
     )->execute([$userId]);
 }
 
-function bind_user_session(string $userId, string $ip, string $token): void
+function bind_user_session(string $userId, string $ip, string $token, bool $remember): void
 {
+    $rememberUntil = $remember
+        ? (new DateTimeImmutable('+' . SESSION_REMEMBER_DAYS . ' days'))->format('Y-m-d H:i:s')
+        : null;
     db()->prepare(
         'UPDATE users
-         SET active_login_ip = ?, active_session_token = ?, session_last_seen = NOW()
+         SET active_login_ip = ?,
+             active_session_token = ?,
+             session_last_seen = NOW(),
+             session_remember_until = ?
          WHERE id = ?'
-    )->execute([$ip, $token, $userId]);
+    )->execute([$ip, $token, $rememberUntil, $userId]);
 }
 
 function touch_user_session(string $userId): void
@@ -75,29 +122,12 @@ function touch_user_session(string $userId): void
     db()->prepare('UPDATE users SET session_last_seen = NOW() WHERE id = ?')->execute([$userId]);
 }
 
-function login_user(string $userId): void
+// New login always kicks any previous session — the old token is overwritten in DB,
+// so the previous tab gets a 401 on its next request (token mismatch).
+function login_user(string $userId, bool $remember = false): void
 {
-    $stmt = db()->prepare(
-        'SELECT active_login_ip, active_session_token, session_last_seen
-         FROM users WHERE id = ? LIMIT 1'
-    );
-    $stmt->execute([$userId]);
-    $row = $stmt->fetch();
-
-    $ip = client_ip();
-    if ($row && session_is_active($row['active_session_token'], $row['session_last_seen'])) {
-        $activeIp = (string) ($row['active_login_ip'] ?? '');
-        if ($activeIp !== '' && $activeIp !== $ip) {
-            json_error(
-                'This account is already signed in from another location. Sign out there first.',
-                409,
-                'login_blocked_elsewhere'
-            );
-        }
-    }
-
     $token = bin2hex(random_bytes(32));
-    bind_user_session($userId, $ip, $token);
+    bind_user_session($userId, client_ip(), $token, $remember);
 
     boot_session();
     session_regenerate_id(true);
@@ -131,7 +161,7 @@ function invalidate_local_session(): void
     session_destroy();
 }
 
-// Returns the logged-in user row (id + email) or null.
+// Returns the logged-in user row (id, email, plus session meta) or null.
 function current_user(): ?array
 {
     boot_session();
@@ -142,7 +172,8 @@ function current_user(): ?array
     }
 
     $stmt = db()->prepare(
-        'SELECT id, email, active_session_token, session_last_seen FROM users WHERE id = ? LIMIT 1'
+        'SELECT id, email, active_session_token, session_last_seen, session_remember_until
+         FROM users WHERE id = ? LIMIT 1'
     );
     $stmt->execute([$userId]);
     $user = $stmt->fetch();
@@ -156,14 +187,23 @@ function current_user(): ?array
         return null;
     }
 
-    if (!session_is_active($user['active_session_token'], $user['session_last_seen'])) {
+    $rememberUntil = $user['session_remember_until'] ?? null;
+    if (!session_is_active($user['active_session_token'], $user['session_last_seen'], $rememberUntil)) {
         clear_user_active_session($userId);
         invalidate_local_session();
         return null;
     }
 
     touch_user_session($userId);
-    unset($user['active_session_token']);
+    $user['session'] = session_meta(
+        (new DateTimeImmutable())->format('Y-m-d H:i:s'),
+        $rememberUntil
+    );
+    unset(
+        $user['active_session_token'],
+        $user['session_last_seen'],
+        $user['session_remember_until']
+    );
     return $user;
 }
 

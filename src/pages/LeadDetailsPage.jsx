@@ -57,7 +57,7 @@ export default function LeadDetailsPage() {
     );
   }
 
-  const canConvert = lead.status !== 'converted' && lead.status !== 'lost';
+  const canConvert = lead.status !== 'lost';
 
   return (
     <div className="page">
@@ -86,11 +86,6 @@ export default function LeadDetailsPage() {
               <ArrowRightLeft size={16} />
               {converting ? 'Converting…' : 'Convert to project'}
             </button>
-          )}
-          {lead.status === 'converted' && lead.converted_project_id && (
-            <Link to={`/projects/${lead.converted_project_id}`} className="btn btn-primary">
-              View project
-            </Link>
           )}
         </div>
       </header>

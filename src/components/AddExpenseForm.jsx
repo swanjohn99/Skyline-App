@@ -3,8 +3,8 @@ import { Plus, Trash2 } from 'lucide-react';
 import { listOpenProjects, listProjects } from '../api/projects';
 import { createExpense, updateExpense } from '../api/expenses';
 import { listVendors, listChemicals, getLatestVendorPrice } from '../api/procurement';
-import { projectSelectLabel } from '../constants';
-import { todayInputValue, toDateInputValue } from '../utils/format';
+import { projectSelectLabel, EXPENSE_TYPES } from '../constants';
+import { todayInputValue, toDateInputValue, formatAmount } from '../utils/format';
 import DateInput from './DateInput';
 import AmountInput from './AmountInput';
 
@@ -384,7 +384,7 @@ function AddExpenseForm({ expense, onExpenseAdded, defaultProjectId, onCancel })
 
                   <div className="form-field expense-item-row-total">
                     <label>Line total</label>
-                    <div className="expense-line-total">{lineTotal(item).toFixed(2)}</div>
+                    <div className="expense-line-total">{formatAmount(lineTotal(item))}</div>
                   </div>
 
                   {form.items.length > 1 && (
@@ -402,7 +402,7 @@ function AddExpenseForm({ expense, onExpenseAdded, defaultProjectId, onCancel })
 
               <div className="expense-purchase-total">
                 <span>Purchase total (INR)</span>
-                <strong>{purchaseTotal.toFixed(2)}</strong>
+                <strong>{formatAmount(purchaseTotal)}</strong>
               </div>
             </div>
           </>

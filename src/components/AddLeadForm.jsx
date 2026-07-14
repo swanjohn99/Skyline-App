@@ -25,16 +25,16 @@ const EMPTY = {
 
 function toFormState(lead) {
   if (!lead) return EMPTY;
-  const useNewInquiry = Boolean(lead.contact_name);
+  const hasLinkedClient = Boolean(lead.client_id);
   return {
-    clientMode: useNewInquiry ? 'new' : 'existing',
+    clientMode: hasLinkedClient ? 'existing' : 'new',
     client_id: lead.client_id || '',
-    contact_name: lead.contact_name || '',
+    contact_name: hasLinkedClient ? '' : (lead.contact_name || ''),
     project_title: lead.project_title || '',
-    phone: lead.phone || lead.client?.phone || '',
-    email: lead.email || lead.client?.email || '',
-    location: lead.location || lead.client?.location || '',
-    source: lead.source || '',
+    phone: hasLinkedClient ? '' : (lead.phone || lead.client?.phone || ''),
+    email: hasLinkedClient ? '' : (lead.email || lead.client?.email || ''),
+    location: hasLinkedClient ? '' : (lead.location || lead.client?.location || ''),
+    source: hasLinkedClient ? '' : (lead.source || ''),
     status: lead.status || 'new_inquiry',
     estimated_value: lead.estimated_value ?? '',
     notes: lead.notes || '',
@@ -51,6 +51,7 @@ export default function AddLeadForm({ lead, onSaved, onCancel }) {
 
   const isEdit = Boolean(lead);
   const isConverted = lead?.status === 'converted';
+  const clientLinkedOnEdit = isEdit && Boolean(lead?.client_id);
   const useExistingClient = form.clientMode === 'existing';
 
   useEffect(() => {
@@ -138,7 +139,7 @@ export default function AddLeadForm({ lead, onSaved, onCancel }) {
       <p className="form-card-subtitle">Link an existing client or capture a new inquiry.</p>
       <form onSubmit={handleSubmit}>
         <div className="add-project-form-grid">
-          {!isConverted && (
+          {!isConverted && !clientLinkedOnEdit && (
             <div className="add-project-form-field" style={{ gridColumn: '1 / -1' }}>
               <label>Client</label>
               <div className="account-mode-toggle">
@@ -254,7 +255,7 @@ export default function AddLeadForm({ lead, onSaved, onCancel }) {
             selectedIds={projectTypeIds}
             onChange={setProjectTypeIds}
             disabled={isConverted}
-            showAddCatalogue={!isEdit}
+            showAddCatalogue={false}
           />
         </div>
 

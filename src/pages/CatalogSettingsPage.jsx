@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, Fragment } from 'react';
 import { Plus, Trash2, Upload } from 'lucide-react';
 import { useAuth } from '../context/auth';
 import {
@@ -52,6 +52,9 @@ export default function CatalogSettingsPage() {
     PROJECT_TYPE_CATEGORIES.forEach((cat) => { map[cat] = []; });
     types.forEach((pt) => {
       if (map[pt.category]) map[pt.category].push(pt);
+    });
+    PROJECT_TYPE_CATEGORIES.forEach((cat) => {
+      map[cat].sort((a, b) => a.name.localeCompare(b.name));
     });
     return map;
   }, [types]);
@@ -182,46 +185,56 @@ export default function CatalogSettingsPage() {
             </form>
           )}
 
-          {PROJECT_TYPE_CATEGORIES.map((category) => (
-            <div key={category} className="project-table-container">
-              <h3 className="project-table-section-title">{category}</h3>
-              <div className="data-table-wrapper">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Status</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(grouped[category] || []).length === 0 ? (
-                      <tr><td colSpan={3} className="data-table-empty">No types in this category.</td></tr>
-                    ) : (
-                      grouped[category].map((pt) => (
-                        <tr key={pt.id}>
-                          <td>{pt.name}</td>
-                          <td>{pt.is_active ? 'Active' : 'Inactive'}</td>
-                          <td className="data-table-actions data-table-actions--compact">
-                            <div className="table-actions-stack">
-                              <button type="button" className="btn-edit" onClick={() => setTypeForm({ ...pt, is_active: Boolean(pt.is_active) })}>
-                                Edit
-                              </button>
-                              {pt.is_active && (
-                                <button type="button" className="btn-edit btn-edit--danger" onClick={() => handleDeactivateType(pt)}>
-                                  <Trash2 size={14} /> Deactivate
-                                </button>
-                              )}
-                            </div>
-                          </td>
+          <div className="project-table-container">
+            <h3 className="project-table-section-title">Project types</h3>
+            <div className="data-table-wrapper">
+              <table className="data-table catalog-types-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th className="data-table-col--actions">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {PROJECT_TYPE_CATEGORIES.map((category) => {
+                    const rows = grouped[category] || [];
+                    return (
+                      <Fragment key={category}>
+                        <tr className="catalog-category-row">
+                          <td colSpan={3}>{category}</td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                        {rows.length === 0 ? (
+                          <tr>
+                            <td colSpan={3} className="catalog-category-empty">No types in this category.</td>
+                          </tr>
+                        ) : (
+                          rows.map((pt) => (
+                            <tr key={pt.id}>
+                              <td>{pt.name}</td>
+                              <td>{pt.is_active ? 'Active' : 'Inactive'}</td>
+                              <td className="data-table-col--actions data-table-actions--compact">
+                                <div className="table-actions-stack">
+                                  <button type="button" className="btn-edit" onClick={() => setTypeForm({ ...pt, is_active: Boolean(pt.is_active) })}>
+                                    Edit
+                                  </button>
+                                  {pt.is_active && (
+                                    <button type="button" className="btn-edit btn-edit--danger" onClick={() => handleDeactivateType(pt)}>
+                                      <Trash2 size={14} /> Deactivate
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          ))}
+          </div>
 
           <div className="project-table-container">
             <h3 className="project-table-section-title">Document templates</h3>
@@ -230,9 +243,9 @@ export default function CatalogSettingsPage() {
                 <thead>
                   <tr>
                     <th>Type</th>
-                    <th>Uploaded</th>
+                    <th className="data-table-col--date">Uploaded</th>
                     <th>File</th>
-                    <th>Actions</th>
+                    <th className="data-table-col--actions">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -241,13 +254,13 @@ export default function CatalogSettingsPage() {
                     return (
                       <tr key={value}>
                         <td>{label}</td>
-                        <td>{tpl ? formatDate(tpl.created_at) : '—'}</td>
+                        <td className="data-table-col--date">{tpl ? formatDate(tpl.created_at) : '—'}</td>
                         <td>
                           {tpl?.file_path ? (
                             <a href={documentDownloadUrl(tpl.file_path)} target="_blank" rel="noreferrer">Download</a>
                           ) : '—'}
                         </td>
-                        <td>
+                        <td className="data-table-col--actions">
                           <label className="btn btn-secondary" style={{ cursor: 'pointer' }}>
                             <Upload size={14} />
                             {uploading === value ? 'Uploading…' : 'Upload'}

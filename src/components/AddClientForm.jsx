@@ -10,7 +10,7 @@ const EMPTY = {
   name: '',
   contact_title: '',
   email: '',
-  phone: '',
+  phones: [''],
   address: '',
   location: '',
   source: '',
@@ -30,12 +30,16 @@ function toFormState(client) {
   if (!client) return EMPTY;
   const isB2b = client.client_type === 'b2b' || client.client_type === 'contractor';
   const account = client.customer_account;
+  const phones = (client.phone || '')
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean);
   return {
     client_type: isB2b ? 'b2b' : 'b2c',
     name: client.name || '',
     contact_title: client.contact_title || '',
     email: client.email || '',
-    phone: client.phone || '',
+    phones: phones.length ? phones : [''],
     address: client.address || '',
     location: client.location || '',
     source: client.source || '',
@@ -93,6 +97,25 @@ export default function AddClientForm({ client, onSaved, onCancel }) {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
+  function handlePhoneChange(index, value) {
+    setForm((prev) => {
+      const phones = [...prev.phones];
+      phones[index] = value;
+      return { ...prev, phones };
+    });
+  }
+
+  function addPhone() {
+    setForm((prev) => ({ ...prev, phones: [...prev.phones, ''] }));
+  }
+
+  function removePhone(index) {
+    setForm((prev) => {
+      const phones = prev.phones.filter((_, i) => i !== index);
+      return { ...prev, phones: phones.length ? phones : [''] };
+    });
+  }
+
   function handleTypeChange(event) {
     const clientType = event.target.value;
     setForm((prev) => ({
@@ -120,7 +143,7 @@ export default function AddClientForm({ client, onSaved, onCancel }) {
       name: form.name.trim(),
       client_type: form.client_type,
       email: form.email.trim() || null,
-      phone: form.phone.trim() || null,
+      phone: form.phones.map((p) => p.trim()).filter(Boolean).join(', ') || null,
       address: form.address.trim() || null,
       location: form.location.trim() || null,
       source: form.source.trim() || null,
@@ -285,9 +308,30 @@ export default function AddClientForm({ client, onSaved, onCancel }) {
               <input name="contact_title" value={form.contact_title} onChange={handleChange} placeholder="Project manager, owner…" />
             </div>
           )}
-          <div className="add-project-form-field">
-            <label>{isB2b ? 'Contact phone' : 'Phone'}</label>
-            <input name="phone" value={form.phone} onChange={handleChange} />
+          <div className="add-project-form-field" style={{ gridColumn: '1 / -1' }}>
+            <label>{isB2b ? 'Contact phone(s)' : 'Phone(s)'}</label>
+            {form.phones.map((phone, index) => (
+              <div key={index} className="phone-row">
+                <input
+                  value={phone}
+                  onChange={(e) => handlePhoneChange(index, e.target.value)}
+                  placeholder="Phone number"
+                />
+                {form.phones.length > 1 && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary phone-remove-btn"
+                    onClick={() => removePhone(index)}
+                    aria-label="Remove phone"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            ))}
+            <button type="button" className="btn btn-secondary phone-add-btn" onClick={addPhone}>
+              + Add phone
+            </button>
           </div>
           <div className="add-project-form-field">
             <label>{isB2b ? 'Contact email' : 'Email'}</label>

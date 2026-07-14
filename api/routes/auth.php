@@ -24,6 +24,9 @@ function route_auth(string $method, array $segments): void
         case 'POST logout':
             auth_logout();
             break;
+        case 'POST heartbeat':
+            auth_heartbeat();
+            break;
         case 'POST forgot-password':
             auth_forgot_password();
             break;
@@ -35,11 +38,25 @@ function route_auth(string $method, array $segments): void
     }
 }
 
-// GET /auth/session -> { user: {id,email} | null }
+// GET /auth/session -> { user: {id,email} | null, session: {...} | null }
 function auth_session(): void
 {
     $user = current_user();
-    json_response(['user' => $user ?: null]);
+    if (!$user) {
+        json_response(['user' => null, 'session' => null]);
+    }
+    $session = $user['session'] ?? null;
+    unset($user['session']);
+    json_response(['user' => $user, 'session' => $session]);
+}
+
+// POST /auth/heartbeat -> touches session_last_seen, returns fresh session meta.
+function auth_heartbeat(): void
+{
+    $user = require_user();
+    $session = $user['session'] ?? null;
+    unset($user['session']);
+    json_response(['user' => $user, 'session' => $session]);
 }
 
 // POST /auth/signup { email, password } -> creates user + auto login
@@ -68,8 +85,11 @@ function auth_signup(): void
     $pdo->prepare('INSERT INTO users (id, email, password_hash) VALUES (?, ?, ?)')
         ->execute([$id, $email, $hash]);
 
-    login_user($id);
-    json_response(['user' => ['id' => $id, 'email' => $email]], 201);
+    $remember = (bool) body_field('remember_me', false);
+    login_user($id, $remember);
+    $current = current_user();
+    $session = $current['session'] ?? null;
+    json_response(['user' => ['id' => $id, 'email' => $email], 'session' => $session], 201);
 }
 
 // POST /auth/login { email, password }
@@ -87,8 +107,11 @@ function auth_login(): void
         json_error('Invalid email or password', 401);
     }
 
-    login_user($user['id']);
-    json_response(['user' => ['id' => $user['id'], 'email' => $user['email']]]);
+    $remember = (bool) body_field('remember_me', false);
+    login_user($user['id'], $remember);
+    $current = current_user();
+    $session = $current['session'] ?? null;
+    json_response(['user' => ['id' => $user['id'], 'email' => $user['email']], 'session' => $session]);
 }
 
 // POST /auth/logout

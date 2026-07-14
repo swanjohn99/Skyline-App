@@ -47,6 +47,7 @@ CREATE TABLE users (
   active_login_ip      varchar(45)  DEFAULT NULL,
   active_session_token char(64)     DEFAULT NULL,
   session_last_seen    timestamp    NULL DEFAULT NULL,
+  session_remember_until timestamp  NULL DEFAULT NULL,
   created_at           timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_users_email (email)
@@ -122,7 +123,7 @@ CREATE TABLE clients (
   name                varchar(255) NOT NULL,
   contact_title       varchar(255) DEFAULT NULL,
   email               varchar(255) DEFAULT NULL,
-  phone               varchar(50)  DEFAULT NULL,
+  phone               varchar(255) DEFAULT NULL,
   address             text         DEFAULT NULL,
   location            varchar(255) DEFAULT NULL,
   source              varchar(255) DEFAULT NULL,

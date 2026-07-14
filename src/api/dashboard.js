@@ -7,6 +7,11 @@ export async function getDashboardData() {
   return {
     activeCount: data?.activeCount ?? 0,
     totalCount: data?.totalCount ?? 0,
+    completedCountYear: data?.completedCountYear ?? 0,
+    totalCountYear: data?.totalCountYear ?? 0,
+    leadsCount: data?.leadsCount ?? 0,
+    totalPending: data?.totalPending ?? 0,
+    pendingProjects: data?.pendingProjects ?? [],
     projects: data?.projects ?? [],
     expenses: data?.expenses ?? [],
     payments: data?.payments ?? [],

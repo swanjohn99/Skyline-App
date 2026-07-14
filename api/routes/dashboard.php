@@ -20,10 +20,11 @@ function route_dashboard(string $method, array $segments): void
     $closed = ['completed', 'rejected'];
     $closedPlaceholders = implode(', ', array_fill(0, count($closed), '?'));
 
-    // Active = not in a closed status.
+    // Active = not closed and not 100% complete.
     $activeStmt = $pdo->prepare(
         "SELECT COUNT(*) AS c FROM projects
-         WHERE {$scope['sql']} AND status NOT IN ($closedPlaceholders)"
+         WHERE {$scope['sql']} AND status NOT IN ($closedPlaceholders)
+         AND COALESCE(completion_percent, 0) < 100"
     );
     $activeStmt->execute([...$scope['params'], ...$closed]);
     $activeCount = (int) $activeStmt->fetch()['c'];
@@ -35,10 +36,62 @@ function route_dashboard(string $method, array $segments): void
     $totalStmt->execute($scope['params']);
     $totalCount = (int) $totalStmt->fetch()['c'];
 
+    $completedYearStmt = $pdo->prepare(
+        "SELECT COUNT(*) AS c FROM projects
+         WHERE {$scope['sql']} AND status IN ('work completed', 'completed')
+         AND YEAR(COALESCE(end_date, created_at)) = YEAR(CURDATE())"
+    );
+    $completedYearStmt->execute($scope['params']);
+    $completedCountYear = (int) $completedYearStmt->fetch()['c'];
+
+    $totalYearStmt = $pdo->prepare(
+        "SELECT COUNT(*) AS c FROM projects
+         WHERE {$scope['sql']} AND status <> 'rejected'
+         AND YEAR(created_at) = YEAR(CURDATE())"
+    );
+    $totalYearStmt->execute($scope['params']);
+    $totalCountYear = (int) $totalYearStmt->fetch()['c'];
+
+    $leadsScope = company_scope($ctx, 'l');
+    $leadsStmt = $pdo->prepare(
+        "SELECT COUNT(*) AS c FROM leads l
+         WHERE {$leadsScope['sql']} AND l.status <> 'converted'"
+    );
+    $leadsStmt->execute($leadsScope['params']);
+    $leadsCount = (int) $leadsStmt->fetch()['c'];
+
     $projectsStmt = $pdo->prepare(
-        "SELECT status, end_date, total_quoted_amount FROM projects WHERE {$scope['sql']}"
+        "SELECT p.id, p.project_title, p.client_name, p.status, p.end_date, p.total_quoted_amount,
+                (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE project_id = p.id) AS amount_received
+         FROM projects p
+         WHERE {$scope['sql']} AND p.status <> 'rejected'"
     );
     $projectsStmt->execute($scope['params']);
+    $projectRows = $projectsStmt->fetchAll();
+
+    $pendingProjects = [];
+    $totalPending = 0.0;
+    foreach ($projectRows as $row) {
+        $quoted = (float) ($row['total_quoted_amount'] ?? 0);
+        if ($quoted <= 0) {
+            continue;
+        }
+        $received = (float) ($row['amount_received'] ?? 0);
+        $pending = $quoted - $received;
+        if ($pending <= 0) {
+            continue;
+        }
+        $pendingProjects[] = [
+            'id' => $row['id'],
+            'project_title' => $row['project_title'],
+            'client_name' => $row['client_name'],
+            'total_quoted_amount' => $quoted,
+            'amount_received' => $received,
+            'pending' => $pending,
+        ];
+        $totalPending += $pending;
+    }
+    usort($pendingProjects, static fn ($a, $b) => $b['pending'] <=> $a['pending']);
 
     $expensesStmt = $pdo->prepare(
         "SELECT amount, expense_date, expense_type FROM expenses WHERE {$scope['sql']}"
@@ -53,7 +106,12 @@ function route_dashboard(string $method, array $segments): void
     json_response([
         'activeCount' => $activeCount,
         'totalCount'  => $totalCount,
-        'projects'    => $projectsStmt->fetchAll(),
+        'completedCountYear' => $completedCountYear,
+        'totalCountYear' => $totalCountYear,
+        'leadsCount' => $leadsCount,
+        'totalPending' => $totalPending,
+        'pendingProjects' => $pendingProjects,
+        'projects'    => $projectRows,
         'expenses'    => $expensesStmt->fetchAll(),
         'payments'    => $paymentsStmt->fetchAll(),
     ]);

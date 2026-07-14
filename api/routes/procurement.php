@@ -399,7 +399,7 @@ function vendor_pricing_list(array $ctx): void
         $sql .= ' AND vp.chemical_id = ?';
         $params[] = $_GET['chemical_id'];
     }
-    $sql .= ' ORDER BY vp.effective_date DESC';
+    $sql .= ' ORDER BY c.name ASC, v.name ASC, vp.effective_date DESC';
     $stmt = db()->prepare($sql);
     $stmt->execute($params);
     json_response($stmt->fetchAll());

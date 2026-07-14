@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Plus, Pencil, Trash2, Search } from 'lucide-react';
 import DateInput from '../components/DateInput';
 import {
   listVendors,
@@ -32,6 +32,8 @@ export default function ProcurementPage() {
   const [priceForm, setPriceForm] = useState(EMPTY_PRICE);
   const [showPriceForm, setShowPriceForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [itemsQuery, setItemsQuery] = useState('');
+  const [pricesQuery, setPricesQuery] = useState('');
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -74,7 +76,7 @@ export default function ProcurementPage() {
   }
 
   async function handleDeleteChemical(chemical) {
-    if (!window.confirm(`Delete chemical "${chemical.name}"?`)) return;
+    if (!window.confirm(`Delete item "${chemical.name}"?`)) return;
     try {
       await deleteChemical(chemical.id);
       await loadAll();
@@ -104,15 +106,41 @@ export default function ProcurementPage() {
     }
   }
 
-  const chemicalsPagination = usePagination(chemicals, undefined, tab);
-  const pricesPagination = usePagination(prices, undefined, `${tab}-${prices.length}`);
+  const filteredItems = useMemo(() => {
+    const q = itemsQuery.trim().toLowerCase();
+    if (!q) return chemicals;
+    return chemicals.filter((c) =>
+      [c.name, c.unit_of_measure]
+        .filter(Boolean)
+        .some((v) => v.toLowerCase().includes(q))
+    );
+  }, [chemicals, itemsQuery]);
+
+  const filteredPrices = useMemo(() => {
+    const q = pricesQuery.trim().toLowerCase();
+    if (!q) return prices;
+    return prices.filter((p) =>
+      [
+        p.chemical_name,
+        p.vendor_name,
+        p.unit_of_measure,
+        String(p.price ?? ''),
+        p.effective_date ? formatDate(p.effective_date) : '',
+      ]
+        .filter(Boolean)
+        .some((v) => v.toLowerCase().includes(q))
+    );
+  }, [prices, pricesQuery]);
+
+  const chemicalsPagination = usePagination(filteredItems, undefined, `${tab}-${itemsQuery}-${chemicals.length}`);
+  const pricesPagination = usePagination(filteredPrices, undefined, `${tab}-${pricesQuery}-${prices.length}`);
 
   return (
     <div className="page">
       <header className="page-header">
         <div>
           <h1 className="page-title">Procurement</h1>
-          <p className="page-subtitle">Manage chemicals catalog and vendor price history.</p>
+          <p className="page-subtitle">Manage items catalog and vendor price history.</p>
         </div>
       </header>
 
@@ -124,7 +152,7 @@ export default function ProcurementPage() {
             className={`admin-tab${tab === t ? ' admin-tab--active' : ''}`}
             onClick={() => setTab(t)}
           >
-            {t === 'chemicals' ? 'Chemicals' : 'Prices'}
+            {t === 'chemicals' ? 'Items' : 'Prices'}
           </button>
         ))}
       </div>
@@ -138,12 +166,12 @@ export default function ProcurementPage() {
           {!chemicalForm && (
             <button type="button" className="btn btn-primary" style={{ marginBottom: '1rem' }} onClick={() => setChemicalForm(EMPTY_CHEMICAL)}>
               <Plus size={17} />
-              Add Chemical
+              Add Item
             </button>
           )}
           {chemicalForm && (
             <form onSubmit={handleChemicalSubmit} className="form-card" style={{ marginBottom: '1rem' }}>
-              <h3 className="form-card-title">{chemicalForm.id ? 'Edit Chemical' : 'Add Chemical'}</h3>
+              <h3 className="form-card-title">{chemicalForm.id ? 'Edit Item' : 'Add Item'}</h3>
               <div className="form-grid">
                 <div className="form-field">
                   <label>Name</label>
@@ -162,24 +190,39 @@ export default function ProcurementPage() {
               </div>
             </form>
           )}
-          <div className="data-table-wrapper">
+          <div className="project-table-container">
+            <div className="project-table-toolbar">
+              <h3 className="project-table-section-title">Items</h3>
+              <div className="search-input">
+                <Search size={16} />
+                <input
+                  type="search"
+                  placeholder="Search name, unit…"
+                  value={itemsQuery}
+                  onChange={(e) => setItemsQuery(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="data-table-wrapper">
             <table className="data-table">
               <thead>
                 <tr>
                   <th>Name</th>
                   <th>Unit</th>
-                  <th>Actions</th>
+                  <th className="data-table-col--actions">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {chemicals.length === 0 ? (
-                  <tr><td colSpan={3} className="data-table-empty">No chemicals yet.</td></tr>
+                  <tr><td colSpan={3} className="data-table-empty">No items yet.</td></tr>
+                ) : filteredItems.length === 0 ? (
+                  <tr><td colSpan={3} className="data-table-empty">No items match your search.</td></tr>
                 ) : (
                   chemicalsPagination.pageItems.map((c) => (
                     <tr key={c.id}>
                       <td>{c.name}</td>
                       <td>{c.unit_of_measure || 'kg'}</td>
-                      <td className="data-table-actions">
+                      <td className="data-table-col--actions">
                         <button type="button" className="btn-edit" onClick={() => setChemicalForm({ ...EMPTY_CHEMICAL, ...c })}>
                           <Pencil size={14} /> Edit
                         </button>
@@ -192,8 +235,9 @@ export default function ProcurementPage() {
                 )}
               </tbody>
             </table>
+            </div>
+            <TablePagination {...chemicalsPagination} onPageChange={chemicalsPagination.setPage} show={chemicalsPagination.showPagination} />
           </div>
-          <TablePagination {...chemicalsPagination} onPageChange={chemicalsPagination.setPage} show={chemicalsPagination.showPagination} />
         </>
       ) : (
         <>
@@ -221,7 +265,7 @@ export default function ProcurementPage() {
                   </select>
                 </div>
                 <div className="form-field">
-                  <label>Chemical</label>
+                  <label>Item</label>
                   <select
                     required
                     value={priceForm.chemical_id}
@@ -261,35 +305,51 @@ export default function ProcurementPage() {
               </div>
             </form>
           )}
-          <div className="data-table-wrapper">
+          <div className="project-table-container">
+            <div className="project-table-toolbar">
+              <h3 className="project-table-section-title">Prices</h3>
+              <div className="search-input">
+                <Search size={16} />
+                <input
+                  type="search"
+                  placeholder="Search item, vendor, price…"
+                  value={pricesQuery}
+                  onChange={(e) => setPricesQuery(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="data-table-wrapper">
             <table className="data-table">
               <thead>
                 <tr>
+                  <th>Item</th>
                   <th>Vendor</th>
-                  <th>Chemical</th>
                   <th>Price</th>
                   <th>Unit</th>
-                  <th>Effective date</th>
+                  <th className="data-table-col--date">Effective date</th>
                 </tr>
               </thead>
               <tbody>
                 {prices.length === 0 ? (
                   <tr><td colSpan={5} className="data-table-empty">No price records yet.</td></tr>
+                ) : filteredPrices.length === 0 ? (
+                  <tr><td colSpan={5} className="data-table-empty">No prices match your search.</td></tr>
                 ) : (
                   pricesPagination.pageItems.map((p) => (
                     <tr key={p.id}>
-                      <td>{p.vendor_name}</td>
                       <td>{p.chemical_name}</td>
+                      <td>{p.vendor_name}</td>
                       <td className="data-table-amount">{formatCurrency(p.price)}</td>
                       <td>{p.unit_of_measure || 'kg'}</td>
-                      <td>{formatDate(p.effective_date)}</td>
+                      <td className="data-table-col--date">{formatDate(p.effective_date)}</td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
+            </div>
+            <TablePagination {...pricesPagination} onPageChange={pricesPagination.setPage} show={pricesPagination.showPagination} />
           </div>
-          <TablePagination {...pricesPagination} onPageChange={pricesPagination.setPage} show={pricesPagination.showPagination} />
         </>
       )}
     </div>

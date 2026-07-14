@@ -3,7 +3,6 @@ import { listMilestones, listMilestonesByProject, deleteMilestone } from '../api
 import { formatDate } from '../utils/format';
 import { usePagination } from '../hooks/usePagination';
 import TablePagination from './TablePagination';
-import './ProjectTable.css';
 
 export default function MilestoneTable({
   refreshKey,
@@ -63,12 +62,12 @@ export default function MilestoneTable({
         <table className="data-table">
           <thead>
             <tr>
-              <th>Date</th>
+              <th className="data-table-col--date">Date</th>
               <th>Milestone</th>
               {!hideProjectColumn && <th>Project</th>}
               {!hideProjectColumn && <th>Client</th>}
               <th>Comments</th>
-              <th>Actions</th>
+              <th className="data-table-col--actions">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -81,7 +80,7 @@ export default function MilestoneTable({
             ) : (
               pageItems.map((m) => (
                 <tr key={m.id}>
-                  <td>{formatDate(m.milestone_date)}</td>
+                  <td className="data-table-col--date">{formatDate(m.milestone_date)}</td>
                   <td>{m.title}</td>
                   {!hideProjectColumn && (
                     <td>{m.projects?.project_title || '—'}</td>
@@ -90,7 +89,7 @@ export default function MilestoneTable({
                     <td>{m.projects?.client_name || '—'}</td>
                   )}
                   <td>{m.comments || '—'}</td>
-                  <td>
+                  <td className="data-table-col--actions">
                     <div className="table-actions-stack">
                       <button type="button" className="btn-edit" onClick={() => onEdit?.(m)}>Edit</button>
                       <button

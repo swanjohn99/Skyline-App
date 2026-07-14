@@ -7,7 +7,6 @@ import { statusBadgeClass } from '../constants';
 import { projectPending, hasQuotedTotal } from '../utils/projectFinance';
 import { usePagination } from '../hooks/usePagination';
 import TablePagination from './TablePagination';
-import './ProjectTable.css';
 
 const COLUMN_OPTIONS = [
   { key: 'client', label: 'Client' },
@@ -129,9 +128,9 @@ function ProjectTable({ refreshKey, onEdit, onDeleted }) {
               {visibleColumns.pending && <th>Pending</th>}
               {visibleColumns.expenses && <th>Expenses</th>}
               {visibleColumns.profit && <th>Profit</th>}
-              {visibleColumns.dates && <th>Dates</th>}
+              {visibleColumns.dates && <th className="data-table-col--date">Dates</th>}
               {visibleColumns.status && <th>Status</th>}
-              <th>Actions</th>
+              <th className="data-table-col--actions">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -168,7 +167,7 @@ function ProjectTable({ refreshKey, onEdit, onDeleted }) {
                       </td>
                     )}
                     {visibleColumns.dates && (
-                      <td className="project-dates-cell">
+                      <td className="project-dates-cell data-table-col--date">
                         <div className="project-dates-stack">
                           <span className="project-date-line">{formatDate(p.start_date)}</span>
                           <span className="project-date-line project-date-line--end">{formatDate(p.end_date)}</span>
@@ -180,7 +179,7 @@ function ProjectTable({ refreshKey, onEdit, onDeleted }) {
                         <span className={statusBadgeClass(p.status)}>{p.status}</span>
                       </td>
                     )}
-                    <td>
+                    <td className="data-table-col--actions">
                       <div className="table-actions-stack">
                         <button type="button" className="btn-edit" onClick={() => onEdit(p)}>Edit</button>
                         <button

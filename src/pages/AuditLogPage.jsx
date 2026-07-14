@@ -44,7 +44,7 @@ export default function AuditLogPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>When</th>
+                  <th className="data-table-col--date">When</th>
                   <th>User</th>
                   <th>Table</th>
                   <th>Action</th>
@@ -57,7 +57,7 @@ export default function AuditLogPage() {
                 ) : (
                   pageItems.map((log) => (
                     <tr key={log.id}>
-                      <td>{formatDate(log.created_at)}</td>
+                      <td className="data-table-col--date">{formatDate(log.created_at)}</td>
                       <td>{log.user_email || '—'}</td>
                       <td>{log.table_name}</td>
                       <td>{log.action}</td>

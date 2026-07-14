@@ -75,8 +75,8 @@ export default function TeamPage() {
                 <th>Email</th>
                 <th>Role</th>
                 <th>Status</th>
-                <th>Joined</th>
-                <th>Access</th>
+                <th className="data-table-col--date">Joined</th>
+                <th className="data-table-col--actions">Access</th>
               </tr>
             </thead>
             <tbody>
@@ -109,8 +109,8 @@ export default function TeamPage() {
                           {m.is_active ? 'Active' : 'Revoked'}
                         </span>
                       </td>
-                      <td>{formatDate(m.created_at)}</td>
-                      <td>
+                      <td className="data-table-col--date">{formatDate(m.created_at)}</td>
+                      <td className="data-table-col--actions">
                         {isSelf || (isProtected && !isSuperAdmin) ? (
                           <span className="data-table-muted">—</span>
                         ) : (

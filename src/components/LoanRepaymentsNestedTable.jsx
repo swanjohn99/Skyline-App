@@ -19,11 +19,11 @@ export default function LoanRepaymentsNestedTable({
       <table className="data-table loans-table-nested">
         <thead>
           <tr>
-            <th>Date</th>
+            <th className="data-table-col--date">Date</th>
             <th>Method</th>
             <th>Comments</th>
-            <th>Amount</th>
-            <th>Actions</th>
+            <th className="data-table-amount">Amount</th>
+            <th className="data-table-col--actions">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -34,11 +34,11 @@ export default function LoanRepaymentsNestedTable({
           ) : (
             pageItems.map((rep) => (
               <tr key={rep.id}>
-                <td>{formatDate(rep.repayment_date)}</td>
+                <td className="data-table-col--date">{formatDate(rep.repayment_date)}</td>
                 <td>{loanRepaymentMethodLabel(rep.payment_method)}</td>
                 <td>{rep.comments || '—'}</td>
                 <td className="data-table-amount">{formatCurrency(rep.amount)}</td>
-                <td>
+                <td className="data-table-col--actions">
                   <div className="table-actions-stack">
                     <button
                       type="button"

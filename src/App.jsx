@@ -4,6 +4,7 @@ import {
   LogOut, PanelLeftClose, PanelLeftOpen, Building2,
 } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
+import PendingPaymentsPage from './pages/PendingPaymentsPage';
 import ProjectPage from './pages/ProjectPage';
 import ExpensePage from './pages/ExpensePage';
 import ProjectDetailsPage from './pages/ProjectDetailsPage';
@@ -28,12 +29,14 @@ import AuditLogPage from './pages/AuditLogPage';
 import SetupPage from './pages/SetupPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import SidebarNav from './components/SidebarNav';
+import SessionIdleWarning from './components/SessionIdleWarning';
 import { useAuth } from './context/auth';
 import { usePageTitle } from './hooks/usePageTitle';
 import { useCompanyFavicon } from './hooks/useCompanyFavicon';
 import { getViewCompanyId, setViewCompanyId } from './apiClient';
 import { listAdminCompanies } from './api/admin';
 import { companyLogoUrl } from './utils/companyLogo';
+import './components/Tables.css';
 import './App.css';
 
 const ROUTER_BASENAME = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
@@ -148,6 +151,7 @@ function AppShell() {
       <main className="main-content">
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/pending-payments" element={<PendingPaymentsPage />} />
           <Route path="/leads" element={<LeadsPage />} />
           <Route path="/leads/:id" element={<LeadDetailsPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
@@ -210,6 +214,7 @@ function App() {
   return (
     <BrowserRouter basename={ROUTER_BASENAME}>
       <AppShell />
+      <SessionIdleWarning />
     </BrowserRouter>
   );
 }

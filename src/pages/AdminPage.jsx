@@ -143,8 +143,8 @@ export default function AdminPage() {
               <tr>
                 <th>Name</th>
                 <th>Members</th>
-                <th>Created</th>
-                <th>Actions</th>
+                <th className="data-table-col--date">Created</th>
+                <th className="data-table-col--actions">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -155,8 +155,8 @@ export default function AdminPage() {
                   <tr key={c.id}>
                     <td>{c.name}</td>
                     <td>{c.member_count ?? 0}</td>
-                    <td>{formatDate(c.created_at)}</td>
-                    <td className="data-table-actions">
+                    <td className="data-table-col--date">{formatDate(c.created_at)}</td>
+                    <td className="data-table-col--actions">
                       <button type="button" className="btn-edit" onClick={() => handleViewCompany(c.id)}>
                         View data
                       </button>
@@ -190,7 +190,7 @@ export default function AdminPage() {
                 <th>Company</th>
                 <th>Role</th>
                 <th>Status</th>
-                <th>Actions</th>
+                <th className="data-table-col--actions">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -223,7 +223,7 @@ export default function AdminPage() {
                           {u.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td className="data-table-actions">
+                      <td className="data-table-col--actions">
                         {!isSelf && (
                           <>
                             <button

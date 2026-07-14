@@ -14,6 +14,27 @@
   gap: 7px;
 }
 
+.phone-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.phone-row input {
+  flex: 1;
+}
+
+.phone-remove-btn {
+  padding: 6px 12px;
+  line-height: 1;
+  font-size: 18px;
+}
+
+.phone-add-btn {
+  align-self: flex-start;
+  padding: 6px 12px;
+}
+
 .add-project-form-field label {
   font-size: 0.8rem;
   font-weight: 600;

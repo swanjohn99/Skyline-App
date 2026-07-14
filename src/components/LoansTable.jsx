@@ -7,7 +7,6 @@ import LoanRepaymentsNestedTable from './LoanRepaymentsNestedTable';
 import TablePagination from './TablePagination';
 import { formatCurrency, formatDate } from '../utils/format';
 import { usePagination } from '../hooks/usePagination';
-import './ProjectTable.css';
 import './LoansTable.css';
 
 export default function LoansTable({
@@ -90,8 +89,8 @@ export default function LoansTable({
               <th>Interest</th>
               <th>Pending</th>
               <th>Rate</th>
-              <th>Date</th>
-              <th>Actions</th>
+              <th className="data-table-col--date">Date</th>
+              <th className="data-table-col--actions">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -130,10 +129,10 @@ export default function LoansTable({
                         {formatCurrency(loan.pending)}
                       </td>
                       <td>{loan.interest_rate_label}</td>
-                      <td className="project-dates-cell">
+                      <td className="project-dates-cell data-table-col--date">
                         <span className="project-date-line">{formatDate(loan.loan_date)}</span>
                       </td>
-                      <td>
+                      <td className="data-table-col--actions">
                         <div className="table-actions-stack">
                           <button type="button" className="btn-edit" onClick={() => onEditLoan(loan)}>Edit</button>
                           <button

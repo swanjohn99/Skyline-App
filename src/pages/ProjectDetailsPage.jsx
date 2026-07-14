@@ -9,6 +9,7 @@ import { listGeneratedDocuments, generateDocument, documentDownloadUrl } from '.
 import UpdateProjectForm from '../components/UpdateProjectForm';
 import AddPaymentForm from '../components/AddPaymentForm';
 import AddExpenseForm from '../components/AddExpenseForm';
+import ExpenseTable from '../components/ExpenseTable';
 import AddMilestoneForm from '../components/AddMilestoneForm';
 import MilestoneTable from '../components/MilestoneTable';
 import EntityContactsTable from '../components/EntityContactsTable';
@@ -16,9 +17,8 @@ import FinancialBreakdownChart from '../components/FinancialBreakdownChart';
 import TablePagination from '../components/TablePagination';
 import DateInput from '../components/DateInput';
 import { formatCurrency, formatDate, todayInputValue } from '../utils/format';
-import ExpenseItemsModal from '../components/ExpenseItemsModal';
 import '../components/UpdateProjectForm.css';
-import { statusBadgeClass, expenseTypeLabel, paymentMethodLabel } from '../constants';
+import { statusBadgeClass, paymentMethodLabel } from '../constants';
 import { projectPending, hasQuotedTotal } from '../utils/projectFinance';
 import { usePagination } from '../hooks/usePagination';
 import { usePageTitle } from '../hooks/usePageTitle';
@@ -32,6 +32,7 @@ export default function ProjectDetailsPage() {
   const [refresh, setRefresh] = useState(0);
   const [showAddPayment, setShowAddPayment] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);
+  const [editingExpense, setEditingExpense] = useState(null);
   const [showAddMilestone, setShowAddMilestone] = useState(false);
   const [editingMilestone, setEditingMilestone] = useState(null);
   const [warranties, setWarranties] = useState([]);
@@ -40,7 +41,6 @@ export default function ProjectDetailsPage() {
   const [warrantyForm, setWarrantyForm] = useState({ start_date: todayInputValue(), duration_months: '12', terms: '' });
   const [docGenerating, setDocGenerating] = useState(null);
   const [sectionError, setSectionError] = useState('');
-  const [detailExpense, setDetailExpense] = useState(null);
 
   useEffect(() => {
     getProject(id).then(setProject).catch(() => setProject(null));
@@ -51,7 +51,6 @@ export default function ProjectDetailsPage() {
   }, [id, refresh]);
 
   const paymentsPagination = usePagination(payments, undefined, refresh);
-  const expensesPagination = usePagination(expenses, undefined, refresh);
 
   usePageTitle(project?.project_title || 'Project');
 
@@ -64,8 +63,9 @@ export default function ProjectDetailsPage() {
     handleUpdated();
   }
 
-  function handleExpenseAdded() {
+  function handleExpenseSaved() {
     setShowAddExpense(false);
+    setEditingExpense(null);
     handleUpdated();
   }
 
@@ -230,7 +230,7 @@ export default function ProjectDetailsPage() {
         <table className="data-table">
           <thead>
             <tr>
-              <th>Date</th>
+              <th className="data-table-col--date">Date</th>
               <th>Method</th>
               <th>Comments</th>
               <th>Amount</th>
@@ -244,7 +244,7 @@ export default function ProjectDetailsPage() {
             ) : (
               paymentsPagination.pageItems.map((pay) => (
                 <tr key={pay.id}>
-                  <td>{formatDate(pay.payment_date)}</td>
+                  <td className="data-table-col--date">{formatDate(pay.payment_date)}</td>
                   <td>{paymentMethodLabel(pay.payment_method)}</td>
                   <td>{pay.comments || '—'}</td>
                   <td className="data-table-amount">{formatCurrency(pay.amount)}</td>
@@ -264,62 +264,27 @@ export default function ProjectDetailsPage() {
 
       <div className="section-header-row">
         <h3 className="section-heading">Expenses</h3>
-        {!showAddExpense && (
+        {!showAddExpense && !editingExpense && (
           <button type="button" className="btn btn-primary btn-sm" onClick={() => setShowAddExpense(true)}>
             <Plus size={15} />
             Add Expense
           </button>
         )}
       </div>
-      {showAddExpense && (
+      {(showAddExpense || editingExpense) && (
         <AddExpenseForm
+          expense={editingExpense}
           defaultProjectId={id}
-          onExpenseAdded={handleExpenseAdded}
-          onCancel={() => setShowAddExpense(false)}
+          onExpenseAdded={handleExpenseSaved}
+          onCancel={() => { setShowAddExpense(false); setEditingExpense(null); }}
         />
       )}
-      <div className="data-table-wrapper">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Description</th>
-              <th>Type</th>
-              <th>Date</th>
-              <th>Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {expenses.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="data-table-empty">No expenses recorded for this project.</td>
-              </tr>
-            ) : (
-              expensesPagination.pageItems.map((exp) => (
-                <tr key={exp.id}>
-                  <td>{exp.description || '—'}</td>
-                  <td>
-                    {exp.expense_type === 'material' && exp.items?.length > 0 ? (
-                      <button type="button" className="link-button" onClick={() => setDetailExpense(exp)}>
-                        {expenseTypeLabel(exp.expense_type)}
-                      </button>
-                    ) : (
-                      expenseTypeLabel(exp.expense_type)
-                    )}
-                  </td>
-                  <td>{formatDate(exp.expense_date)}</td>
-                  <td className="data-table-amount">{formatCurrency(exp.amount)}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-      <TablePagination
-        page={expensesPagination.page}
-        totalPages={expensesPagination.totalPages}
-        totalCount={expensesPagination.totalCount}
-        onPageChange={expensesPagination.setPage}
-        show={expensesPagination.showPagination}
+      <ExpenseTable
+        projectId={id}
+        hideProjectColumn
+        refreshKey={refresh}
+        onEdit={(e) => { setEditingExpense(e); setShowAddExpense(false); }}
+        onDeleted={() => setRefresh((n) => n + 1)}
       />
 
       <div className="section-header-row">
@@ -383,15 +348,15 @@ export default function ProjectDetailsPage() {
       <div className="data-table-wrapper">
         <table className="data-table">
           <thead>
-            <tr><th>Start</th><th>End</th><th>Duration</th><th>Terms</th></tr>
+            <tr><th className="data-table-col--date">Start</th><th className="data-table-col--date">End</th><th>Duration</th><th>Terms</th></tr>
           </thead>
           <tbody>
             {warranties.length === 0 ? (
               <tr><td colSpan={4} className="data-table-empty">No warranties recorded.</td></tr>
             ) : warranties.map((w) => (
               <tr key={w.id}>
-                <td>{formatDate(w.start_date)}</td>
-                <td>{formatDate(w.end_date)}</td>
+                <td className="data-table-col--date">{formatDate(w.start_date)}</td>
+                <td className="data-table-col--date">{formatDate(w.end_date)}</td>
                 <td>{w.duration_months} mo</td>
                 <td>{w.terms || '—'}</td>
               </tr>
@@ -420,7 +385,7 @@ export default function ProjectDetailsPage() {
       <div className="data-table-wrapper">
         <table className="data-table">
           <thead>
-            <tr><th>Type</th><th>Generated</th><th>Download</th></tr>
+            <tr><th>Type</th><th className="data-table-col--date">Generated</th><th>Download</th></tr>
           </thead>
           <tbody>
             {documents.length === 0 ? (
@@ -428,7 +393,7 @@ export default function ProjectDetailsPage() {
             ) : documents.map((d) => (
               <tr key={d.id}>
                 <td>{d.template_type}</td>
-                <td>{formatDate(d.created_at)}</td>
+                <td className="data-table-col--date">{formatDate(d.created_at)}</td>
                 <td>
                   <a href={documentDownloadUrl(d.file_path)} target="_blank" rel="noreferrer">Download</a>
                 </td>
@@ -445,8 +410,6 @@ export default function ProjectDetailsPage() {
           onClose={() => setEditing(false)}
         />
       )}
-
-      <ExpenseItemsModal expense={detailExpense} onClose={() => setDetailExpense(null)} />
     </div>
   );
 }

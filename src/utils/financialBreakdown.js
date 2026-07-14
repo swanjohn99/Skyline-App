@@ -12,7 +12,7 @@ export const BREAKDOWN_COLORS = {
 };
 
 const SHORT_LABELS = {
-  material: 'Material',
+  material: 'Chemicals',
   labour: 'Labour',
   transportation: 'Transportation',
   other: 'Others',

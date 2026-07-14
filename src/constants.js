@@ -1,7 +1,7 @@
 export const TABLE_PAGE_SIZE = 50;
 
 export const EXPENSE_TYPES = [
-  { value: 'material', label: 'Material' },
+  { value: 'material', label: 'Chemicals' },
   { value: 'labour', label: 'Labour payment' },
   { value: 'transportation', label: 'Transportation' },
   { value: 'other', label: 'Others' },

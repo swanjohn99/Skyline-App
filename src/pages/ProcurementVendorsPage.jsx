@@ -12,7 +12,6 @@ import TablePagination from '../components/TablePagination';
 import VendorContactsEditor from '../components/VendorContactsEditor';
 import VendorContactsModal from '../components/VendorContactsModal';
 import { usePageTitle } from '../hooks/usePageTitle';
-import '../components/ProjectTable.css';
 
 const COLUMN_OPTIONS = [
   { key: 'phone', label: 'Phone' },
@@ -351,7 +350,7 @@ export default function ProcurementVendorsPage() {
                     {visibleColumns.bank_account_holder && <th>A/c holder</th>}
                     {visibleColumns.bank_name && <th>Bank name</th>}
                     {visibleColumns.bank_ifsc && <th>IFSC</th>}
-                    <th>Actions</th>
+                    <th className="data-table-col--actions">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -390,7 +389,7 @@ export default function ProcurementVendorsPage() {
                         {visibleColumns.bank_account_holder && <td>{v.bank_account_holder || '—'}</td>}
                         {visibleColumns.bank_name && <td>{v.bank_name || '—'}</td>}
                         {visibleColumns.bank_ifsc && <td>{v.bank_ifsc || '—'}</td>}
-                        <td className="data-table-actions">
+                        <td className="data-table-col--actions">
                           <div className="table-actions-stack">
                             <button type="button" className="btn-edit" onClick={() => setVendorForm(toVendorForm(v))}>
                               <Pencil size={14} /> Edit

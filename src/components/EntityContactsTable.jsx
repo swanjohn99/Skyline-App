@@ -144,7 +144,7 @@ export default function EntityContactsTable({ entityType, entityId, excludeClien
                 <th>Email</th>
                 <th>Role</th>
                 <th>Principal</th>
-                <th>Actions</th>
+                <th className="data-table-col--actions">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -158,7 +158,7 @@ export default function EntityContactsTable({ entityType, entityId, excludeClien
                     <td>{c.email || '—'}</td>
                     <td>{c.role || '—'}</td>
                     <td>{c.is_principal ? 'Yes' : '—'}</td>
-                    <td>
+                    <td className="data-table-col--actions">
                       <div className="table-actions-stack">
                         <button type="button" className="btn-edit btn-edit--danger" onClick={() => handleDelete(c)}>
                           <Trash2 size={14} />

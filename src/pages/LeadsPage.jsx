@@ -8,7 +8,6 @@ import { formatCurrency } from '../utils/format';
 import { usePagination } from '../hooks/usePagination';
 import TablePagination from '../components/TablePagination';
 import { usePageTitle } from '../hooks/usePageTitle';
-import '../components/ProjectTable.css';
 
 export default function LeadsPage() {
   usePageTitle('Leads');
@@ -118,7 +117,7 @@ export default function LeadsPage() {
                       <th>Project name</th>
                       <th>Client</th>
                       <th>Est. value</th>
-                      <th>Actions</th>
+                      <th className="data-table-col--actions">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -126,7 +125,7 @@ export default function LeadsPage() {
                       <tr><td colSpan={5} className="data-table-empty">No leads yet.</td></tr>
                     ) : (
                       pageItems.map((lead) => {
-                        const canConvert = lead.status !== 'converted' && lead.status !== 'lost';
+                        const canConvert = lead.status !== 'lost';
                         return (
                           <tr key={lead.id}>
                             <td>
@@ -143,7 +142,7 @@ export default function LeadsPage() {
                               ) : '—'}
                             </td>
                             <td className="data-table-amount">{formatCurrency(lead.estimated_value)}</td>
-                            <td className="data-table-actions">
+                            <td className="data-table-col--actions">
                               <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
                                 <div className="table-actions-stack">
                                   <button type="button" className="btn-edit" onClick={() => setEditing(lead)}>Edit</button>
@@ -166,11 +165,6 @@ export default function LeadsPage() {
                                     <ArrowRightLeft size={14} />
                                     {convertingId === lead.id ? 'Converting…' : 'Convert'}
                                   </button>
-                                )}
-                                {lead.status === 'converted' && lead.converted_project_id && (
-                                  <Link to={`/projects/${lead.converted_project_id}`} className="btn btn-secondary btn-sm">
-                                    View project
-                                  </Link>
                                 )}
                               </div>
                             </td>

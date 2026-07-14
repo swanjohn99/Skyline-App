@@ -73,13 +73,16 @@ Password reset: `/reset?token=…` → `ResetPasswordPage` (reachable before aut
 
 | Feature | Behavior |
 |---------|----------|
-| Login | Email + password |
+| Login | Email + password; optional `remember_me` extends idle window |
 | Session | Cookie `skyline_sid`; validated against `users.active_session_token` |
-| Single-IP lock | Active session from different IP → HTTP 409 `login_blocked_elsewhere`; same IP re-login replaces session |
-| Stale session | No `session_last_seen` touch for 24h → session invalid; frontend clears auth on 401 and re-checks session on tab focus |
+| Concurrent login | New login overwrites `active_session_token` — the previous tab gets 401 on its next request |
+| Idle timeout | 30 minutes without a server touch invalidates the session |
+| Remember device | `session_remember_until` (30 days) widens the idle window to 30 days |
+| Heartbeat | Frontend pings `POST /auth/heartbeat` every 5 min while tab is visible so readers-without-clicks stay signed in |
+| Idle warning | UI shows a "Stay signed in" banner ~2 minutes before `expires_at`; server returns `expires_at` on every auth touch |
 | Logout | Clears DB session fields + destroys cookie |
 
-**Endpoints:** `GET /auth/session`, `POST /auth/signup`, `POST /auth/login`, `POST /auth/logout`, `POST /auth/forgot-password`, `POST /auth/reset-password`
+**Endpoints:** `GET /auth/session`, `POST /auth/signup`, `POST /auth/login`, `POST /auth/logout`, `POST /auth/heartbeat`, `POST /auth/forgot-password`, `POST /auth/reset-password`
 
 **Promote super admin:** SQL on `profiles` — see root [`README.md`](../README.md).
 
@@ -373,6 +376,12 @@ Entry point: `api/index.php`. Local dev router: `api/router.php`.
 | `008_company_favicon.sql` | `companies.favicon_path` |
 | `009_business_expansion.sql` | Leads, project types, procurement, tasks, warranties, audit, documents |
 | `010_entity_contacts_client.sql` | POC links on client records (`entity_type = client`) |
+| `011_leads_project_title_expense_items.sql` | Lead project title + expense line items |
+| `012_vendor_contacts.sql` | Vendor contacts table |
+| `013_vendor_profile.sql` | Vendor profile fields |
+| `014_business_updates.sql` | Advance-received status, custom task types, remove client POC |
+| `015_client_multi_phone.sql` | Widen `clients.phone` for multiple numbers |
+| `016_session_remember.sql` | `users.session_remember_until` (remember-this-device) |
 
 | Table | Tenant-scoped | Purpose |
 |-------|---------------|---------|

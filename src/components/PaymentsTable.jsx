@@ -4,7 +4,6 @@ import { formatCurrency, formatDate } from '../utils/format';
 import { paymentMethodLabel } from '../constants';
 import { usePagination } from '../hooks/usePagination';
 import TablePagination from './TablePagination';
-import './ProjectTable.css';
 
 export default function PaymentsTable({ refreshKey, onEdit, onDeleted }) {
   const [payments, setPayments] = useState([]);
@@ -54,13 +53,13 @@ export default function PaymentsTable({ refreshKey, onEdit, onDeleted }) {
         <table className="data-table">
           <thead>
             <tr>
-              <th>Date</th>
+              <th className="data-table-col--date">Date</th>
               <th>Method</th>
               <th>Project</th>
               <th>Client Name</th>
               <th>Comments</th>
               <th>Amount</th>
-              <th>Actions</th>
+              <th className="data-table-col--actions">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -71,13 +70,13 @@ export default function PaymentsTable({ refreshKey, onEdit, onDeleted }) {
             ) : (
               pageItems.map(p => (
                 <tr key={p.id}>
-                  <td>{formatDate(p.payment_date)}</td>
+                  <td className="data-table-col--date">{formatDate(p.payment_date)}</td>
                   <td>{paymentMethodLabel(p.payment_method)}</td>
                   <td>{p.projects?.project_title || '—'}</td>
                   <td>{p.projects?.client_name || '—'}</td>
                   <td>{p.comments || '—'}</td>
                   <td className="data-table-amount">{formatCurrency(p.amount)}</td>
-                  <td>
+                  <td className="data-table-col--actions">
                     <div className="table-actions-stack">
                       <button type="button" className="btn-edit" onClick={() => onEdit(p)}>Edit</button>
                       <button

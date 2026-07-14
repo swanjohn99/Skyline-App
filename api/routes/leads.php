@@ -158,7 +158,7 @@ function leads_list(array $ctx): void
 {
     $scope = company_scope($ctx, 'l');
     $stmt = db()->prepare(
-        leads_select_sql() . " WHERE {$scope['sql']} ORDER BY l.updated_at DESC, l.created_at DESC"
+        leads_select_sql() . " WHERE {$scope['sql']} AND l.status <> 'converted' ORDER BY l.updated_at DESC, l.created_at DESC"
     );
     $stmt->execute($scope['params']);
     json_response(array_map('lead_out', $stmt->fetchAll()));
@@ -211,12 +211,12 @@ function leads_create(array $ctx): void
         $id,
         $companyId,
         $clientId,
-        trim((string) ($body['contact_name'] ?? '')) ?: null,
+        null,
         trim((string) ($body['project_title'] ?? '')) ?: null,
-        trim((string) ($body['phone'] ?? '')) ?: null,
-        trim((string) ($body['email'] ?? '')) ?: null,
-        trim((string) ($body['location'] ?? '')) ?: null,
-        trim((string) ($body['source'] ?? '')) ?: null,
+        null,
+        null,
+        null,
+        null,
         $status,
         $body['estimated_value'] ?? null,
         $body['notes'] ?? null,
@@ -245,8 +245,15 @@ function leads_update(array $ctx, string $id): void
     $sets = ['client_id = ?'];
     $params = [$clientId];
 
+    $inquiryFields = ['contact_name', 'phone', 'email', 'location', 'source'];
+    if ($clientId) {
+        foreach ($inquiryFields as $f) {
+            $sets[] = "$f = NULL";
+        }
+    }
+
     foreach (LEAD_FIELDS as $f) {
-        if ($f === 'client_id') {
+        if ($f === 'client_id' || ($clientId && in_array($f, $inquiryFields, true))) {
             continue;
         }
         if (array_key_exists($f, $body)) {
@@ -354,12 +361,10 @@ function leads_convert(array $ctx, string $id): void
             )->execute([$pocId, $lead['company_id'], $projectId, $clientId, 'Owner']);
         }
 
-        $pdo->prepare(
-            'UPDATE leads SET status = \'converted\', converted_project_id = ? WHERE id = ?'
-        )->execute([$projectId, $id]);
-
-        log_audit_action($pdo, $ctx, 'leads', $id, 'UPDATE', $lead, ['status' => 'converted', 'project_id' => $projectId]);
         log_audit_action($pdo, $ctx, 'projects', $projectId, 'INSERT', null, ['lead_id' => $id]);
+
+        log_audit_action($pdo, $ctx, 'leads', $id, 'DELETE', $lead, null);
+        $pdo->prepare('DELETE FROM leads WHERE id = ?')->execute([$id]);
 
         $pdo->commit();
     } catch (Throwable $e) {

@@ -9,6 +9,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup' | 'forgot'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -29,18 +30,12 @@ export default function LoginPage() {
         await requestPasswordReset(email);
         setMessage('If an account exists for that email, a reset link is on its way.');
       } else if (isSignUp) {
-        await signUp(email, password);
+        await signUp(email, password, rememberMe);
       } else {
-        await signIn(email, password);
+        await signIn(email, password, rememberMe);
       }
     } catch (err) {
-      if (err.code === 'login_blocked_elsewhere' || err.status === 409) {
-        setError(
-          'This account is already signed in from another location. Sign out there first, or wait up to 24 hours for the session to expire.'
-        );
-      } else {
-        setError(err.message || 'Something went wrong.');
-      }
+      setError(err.message || 'Something went wrong.');
     } finally {
       setSubmitting(false);
     }
@@ -99,15 +94,26 @@ export default function LoginPage() {
             </>
           )}
 
-          {!isSignUp && !isForgot && (
-            <button
-              type="button"
-              className="login-toggle-btn"
-              style={{ alignSelf: 'flex-end' }}
-              onClick={() => switchMode('forgot')}
-            >
-              Forgot password?
-            </button>
+          {!isForgot && (
+            <div className="login-remember-row">
+              <label className="login-remember">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                />
+                <span>Remember this device (30 days)</span>
+              </label>
+              {!isSignUp && (
+                <button
+                  type="button"
+                  className="login-toggle-btn"
+                  onClick={() => switchMode('forgot')}
+                >
+                  Forgot password?
+                </button>
+              )}
+            </div>
           )}
 
           {error && <p className="login-error">{error}</p>}

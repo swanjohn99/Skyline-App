@@ -211,12 +211,12 @@ export default function CalendarPage() {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Due date</th>
+                    <th className="data-table-col--date">Due date</th>
                     <th>Title</th>
                     <th>Type</th>
                     <th>Linked to</th>
                     <th>Status</th>
-                    <th>Actions</th>
+                    <th className="data-table-col--actions">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -227,12 +227,12 @@ export default function CalendarPage() {
                   ) : (
                     pageItems.map((task) => (
                       <tr key={task.id} className={task.is_completed ? 'task-row--completed' : ''}>
-                        <td>{formatDate(task.due_date)}</td>
+                        <td className="data-table-col--date">{formatDate(task.due_date)}</td>
                         <td>{task.title || '—'}</td>
                         <td>{taskTypeLabel(task.task_type)}</td>
                         <td>{entityLink(task)}</td>
                         <td>{task.is_completed ? 'Done' : 'Open'}</td>
-                        <td className="data-table-actions">
+                        <td className="data-table-col--actions">
                           <div className="table-actions-stack">
                             <button type="button" className="btn-edit" onClick={() => handleEditTask(task)}>
                               Edit
